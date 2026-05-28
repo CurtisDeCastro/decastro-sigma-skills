@@ -41,5 +41,6 @@ Agents activate these automatically based on the user's request.
 
 - **sigma-api** — Authenticate against the Sigma REST API (OAuth client credentials, bearer tokens, base URL per cloud). Prerequisite for the other skills.
 - **sigma-data-models** — Create, retrieve, or modify a Sigma data model spec (sources, columns, metrics, relationships, filters, controls, folder groupings, column-level security) via the REST API.
+- **sigma-embed** — Generate server-side Sigma embed URLs (JWT signing, workbook URL construction) and manage per-customer workbook variants via version tags. Covers credential setup, tagged URL construction, per-customer spec composition, and automated tag provisioning.
 
 See [`README.md`](./README.md) for full details, including team deployment.
