@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.2.0 — 2026-05-28
+
+New `sigma-embed` skill for generating Sigma embed URLs and managing per-customer workbook variants via version tags.
+
+### Added
+
+- **`sigma-embed`** — Generate server-side embed URLs (JWT signing via built-in `node:crypto`, no npm deps) and manage per-customer workbook variants. Covers embed vs. admin credential separation, tagged workbook URL construction (`/tag/{name}` path segment), per-customer spec composition via a `CUSTOMER_CONFIG` pattern, automated tag provisioning with auto dry-run when credentials are absent, and escalation guidance to data model tags for more complex cases. Includes `scripts/generate-embed-url.js` for quick verification and three reference files: `reference/customer-config.md`, `reference/tag-sync.md`, and `reference/escalation.md`.
+
 ## v0.1.3 — 2026-05-21
 
 `sigma-api` base-URL allowlist resynced with the current published hosts.
