@@ -2,15 +2,15 @@
 
 Multi-provider agent skills for [Sigma Computing](https://sigmacomputing.com). The same skill content runs in Claude Code, Cursor, OpenAI Codex, and Snowflake Cortex Code.
 
-This repository is a curated, read-only mirror. For questions or feature requests, contact [Sigma Support](https://help.sigmacomputing.com/docs/sigma-support).
+**Not an official Sigma Computing product.** An independent library maintained by @CurtisDeCastro. `sigma-api`, `sigma-data-models` and `sigma-embed` are derived from Sigma's official repo (Apache-2.0); everything else is original.
 
 ## Installation
 
 ### Claude Code
 
 ```
-/plugin marketplace add https://github.com/sigmacomputing/sigma-agent-skills.git
-/plugin install sigma-computing@sigma-computing
+/plugin marketplace add https://github.com/CurtisDeCastro/decastro-sigma-skills.git
+/plugin install decastro-sigma-skills@decastro-sigma-skills
 ```
 
 ### Cursor
@@ -26,7 +26,7 @@ Codex auto-loads this `AGENTS.md` and the `skills/` directory from the repo root
 Inside a Cortex Code session:
 
 ```
-/skill add https://github.com/sigmacomputing/sigma-agent-skills.git
+/skill add https://github.com/CurtisDeCastro/decastro-sigma-skills.git
 ```
 
 To update to the latest version:
@@ -39,8 +39,19 @@ To update to the latest version:
 
 Agents activate these automatically based on the user's request.
 
-- **sigma-api** — Authenticate against the Sigma REST API (OAuth client credentials, bearer tokens, base URL per cloud). Prerequisite for the other skills.
-- **sigma-data-models** — Create, retrieve, or modify a Sigma data model spec (sources, columns, metrics, relationships, filters, controls, folder groupings, column-level security) via the REST API.
-- **sigma-embed** — Generate server-side Sigma embed URLs (JWT signing, workbook URL construction) and manage per-customer workbook variants via version tags. Covers credential setup, tagged URL construction, per-customer spec composition, and automated tag provisioning.
+- **sigma-workbook-builder** — **Start here for workbooks.** Build production Sigma workbooks in code: production defaults (native elements over hand-built cards, theme-driven styling, live formulas instead of typed numbers, two-tier sourcing), verified element/layout/formula shapes, and the traps that pass `spec/verify` and still render wrong.
+- **report-to-workbook** — Rebuild an existing report (screenshot, PDF, HTML, or the script that emits one) as a live Sigma workbook on your own data.
+- **sigma-workbook-styling** — Visual craft: the `style` object, theme tokens, repeated containers, images and icons, composition.
+- **sigma-plugin-development** — Build a custom Sigma plugin with the `@sigmacomputing/plugin` SDK.
+- **sigma-plugin-patterns** — Architectural recipes for plugins (config, state, interaction).
+- **sigma-api** — Authenticate against the Sigma REST API. Prerequisite for the others.
+- **sigma-data-models** — Create, retrieve, or modify a Sigma data model spec via the REST API.
+- **sigma-embed** — Server-side embed URLs (JWT signing) and per-customer workbook variants via version tags.
 
-See [`README.md`](./README.md) for full details, including team deployment.
+## Tooling
+
+`scripts/` carries the CLI-authed transport plus `shot.py`, which renders a page or element
+to PNG. Rendering is not optional: `spec/verify` checks structure, not whether anything
+renders — a spec can pass verify and still render every tile broken.
+
+See [`README.md`](./README.md) for full details.

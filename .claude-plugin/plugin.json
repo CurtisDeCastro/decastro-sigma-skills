@@ -1,26 +1,23 @@
 {
-  "name": "sigma-computing",
-  "version": "0.2.0",
-  "description": "Sigma Computing agent skills for Claude Code, Cursor, OpenAI Codex, and Snowflake Cortex Code. Build, analyze, and administer Sigma resources programmatically.",
+  "name": "decastro-sigma-skills",
+  "version": "0.3.0",
+  "description": "Field-tested agent skills for building production Sigma workbooks in code. Workbooks-as-code authoring, report replication, styling, embeds, data models, and plugin development for Claude Code, Cursor, OpenAI Codex, and Snowflake Cortex Code.",
   "author": {
-    "name": "Sigma Computing"
+    "name": "Curtis DeCastro"
   },
-  "repository": "https://github.com/sigmacomputing/sigma-agent-skills",
+  "repository": "https://github.com/CurtisDeCastro/decastro-sigma-skills",
   "license": "Apache-2.0",
   "skills": "./skills/",
   "keywords": [
     "sigma",
     "sigma-computing",
+    "workbooks-as-code",
     "analytics",
     "business-intelligence",
     "dashboards",
     "workbooks",
     "data-modeling",
     "embedded-analytics",
-    "cloud-data-warehouse",
-    "self-service-analytics",
-    "spreadsheets",
-    "ai-agents",
-    "governance"
+    "ai-agents"
   ]
 }

@@ -1,39 +1,36 @@
 {
-  "name": "sigma-computing",
+  "name": "decastro-sigma-skills",
   "owner": {
-    "name": "Sigma Computing"
+    "name": "Curtis DeCastro"
   },
   "metadata": {
-    "description": "Sigma Computing agent skills for Claude Code, Cursor, OpenAI Codex, and Snowflake Cortex Code. Build, analyze, and administer Sigma resources programmatically.",
-    "version": "0.2.0"
+    "description": "Field-tested agent skills for building production Sigma workbooks in code. Workbooks-as-code authoring, report replication, styling, embeds, data models, and plugin development for Claude Code, Cursor, OpenAI Codex, and Snowflake Cortex Code.",
+    "version": "0.3.0"
   },
   "plugins": [
     {
-      "name": "sigma-computing",
+      "name": "decastro-sigma-skills",
       "source": {
         "source": "url",
-        "url": "https://github.com/sigmacomputing/sigma-agent-skills.git"
+        "url": "https://github.com/CurtisDeCastro/decastro-sigma-skills.git"
       },
-      "description": "Sigma Computing agent skills for Claude Code, Cursor, OpenAI Codex, and Snowflake Cortex Code. Build, analyze, and administer Sigma resources programmatically.",
-      "version": "0.2.0",
+      "description": "Field-tested agent skills for building production Sigma workbooks in code. Workbooks-as-code authoring, report replication, styling, embeds, data models, and plugin development for Claude Code, Cursor, OpenAI Codex, and Snowflake Cortex Code.",
+      "version": "0.3.0",
       "author": {
-        "name": "Sigma Computing"
+        "name": "Curtis DeCastro"
       },
       "license": "Apache-2.0",
       "keywords": [
         "sigma",
         "sigma-computing",
+        "workbooks-as-code",
         "analytics",
         "business-intelligence",
         "dashboards",
         "workbooks",
         "data-modeling",
         "embedded-analytics",
-        "cloud-data-warehouse",
-        "self-service-analytics",
-        "spreadsheets",
-        "ai-agents",
-        "governance"
+        "ai-agents"
       ],
       "category": "data"
     }

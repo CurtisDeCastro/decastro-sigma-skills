@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.3.0 — 2026-08-31
+
+Workbooks-as-code: a production workbook builder, report replication, styling, plugin
+skills, and the CLI transport + render tooling to run them. Repository identity corrected.
+
+### Added
+
+- **`sigma-workbook-builder`** — the production workbook authoring skill. `reference/production-defaults.md` (ten defaults + a first-pass checklist: native elements over hand-built cards, `name`/`description` over caption text, page-header panels, theme-driven styling, live formulas instead of typed numbers, pivot totals/layout/sort, two-tier sourcing, patching the live spec), `reference/element-shapes.md` (verified shapes for every element kind, controls, layout XML, formulas), `reference/traps.md` (what passes `spec/verify` and still renders wrong), `reference/demo-vs-production.md` (which lessons transfer from demo-oriented examples and which do not), and `examples/exemplar-spec.json` — a complete production-shaped workbook that verifies as a create payload.
+- **`report-to-workbook`** — rebuild an existing report from a screenshot, PDF, or HTML into a live workbook on your own data.
+- **`sigma-workbook-styling`** — visual craft: `style` object, theme tokens, repeated containers, images/icons, composition.
+- **`sigma-plugin-development`**, **`sigma-plugin-patterns`** — custom plugin SDK reference and architectural recipes.
+- **`scripts/`** — CLI-authed transport (`sigma_spec`, `sigma_api`, `sigma_auth`, `compose/grid.py`), warehouse discovery and publish helpers under `api/`, `validate-spec.py`, and **`shot.py`** for PNG rendering of a page or single element.
+
+### Fixed
+
+- **Installation never worked.** Every install path — README, `AGENTS.md`, and all four plugin manifests — pointed at `sigmacomputing/sigma-agent-skills`, so following the instructions installed Sigma's official skills rather than this repository's.
+- **Repository identity.** Manifests declared `name: sigma-computing`, `author: Sigma Computing`, and the official repo as `repository`. `CODEOWNERS` assigned review to `@sigmacomputing/docs`, and `SECURITY.md` routed vulnerability reports for this code to Sigma's product VDP. All corrected, with `NOTICE` added to attribute the three skills derived from Sigma's Apache-2.0 repo.
+
 ## v0.2.0 — 2026-05-28
 
 New `sigma-embed` skill for generating Sigma embed URLs and managing per-customer workbook variants via version tags.

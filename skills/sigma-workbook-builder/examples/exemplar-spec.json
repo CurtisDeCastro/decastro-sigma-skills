@@ -1,0 +1,1546 @@
+{
+ "document": {
+  "agents": [
+   {
+    "dataSources": [
+     {
+      "elementId": "t-scn",
+      "kind": "table"
+     },
+     {
+      "elementId": "t-earn",
+      "kind": "table"
+     },
+     {
+      "elementId": "t-und",
+      "kind": "table"
+     }
+    ],
+    "greeting": {
+     "message": "I'm the options risk desk. Ask me which shock cell is closest to its limit, where the earnings matrix is most exposed to a large move, or which single names carry the worst tail.",
+     "mode": "static"
+    },
+    "id": "ag-risk",
+    "instructions": "You are a derivatives risk analyst on the Options Arbitrage desk on a multi-strategy options desk The book is roughly 775 option legs across 220 single-name underliers, net LONG gamma and vega, so it gains in both tails of a large spot move and bleeds in a quiet, vol-crushing tape. Data you can read: Scenario (portfolio P&L on an 11x9 spot x implied-vol shock grid), Earnings (P&L by name across -3..+3 straddle moves for names held through earnings), Underliers (spot, 1-month implied vol, vol tier) and Positions (strike, DTE, side, delta/gamma/vega/theta). Definitions to use exactly: a shock cell is the portfolio P&L if spot moves by the spot shock AND implied vol moves by the vol shock, repriced position by position; a limit breach is a cell P&L at or below its stated limit, and NEAR means within 80% of it. Lead with risk, not size: a cell close to its limit, or a single name whose worst case dominates the book, matters more than the largest gross line. Be concise and quantitative, quote the cell you are reading, and end with one short 'what to watch'.",
+    "name": "Options Risk Desk"
+   }
+  ],
+  "elements": [
+   {
+    "id": "tc",
+    "kind": "tabbed-container",
+    "style": {
+     "backgroundColor": "transparent"
+    },
+    "tabBar": {
+     "alignment": "start",
+     "size": "small"
+    },
+    "tabs": [
+     {
+      "name": "Sensitivity"
+     },
+     {
+      "name": "Earnings"
+     },
+     {
+      "name": "Market Shock"
+     },
+     {
+      "name": "Contributors"
+     },
+     {
+      "name": "Max Loss"
+     },
+     {
+      "name": "Single-Name Vol"
+     },
+     {
+      "name": "SN Worst"
+     },
+     {
+      "name": "Risk Copilot"
+     }
+    ]
+   },
+   {
+    "id": "r6hmzpyk6G",
+    "kind": "container",
+    "style": {
+     "backgroundColor": "#ffffff",
+     "borderColor": "#e5e5e2",
+     "borderWidth": 2
+    }
+   },
+   {
+    "body": "<p class=\"p-large\">**Portfolio Sensitivity: Market Price and Implied Volatility Shocks**</p>",
+    "id": "sec1",
+    "kind": "text",
+    "verticalAlign": "middle"
+   },
+   {
+    "elementGap": "hidden",
+    "id": "wR8m4CSfLb",
+    "kind": "container",
+    "spacing": "small",
+    "style": {
+     "backgroundColor": "#f9f9f7",
+     "borderRadius": "round",
+     "padding": "none"
+    }
+   },
+   {
+    "columns": [
+     {
+      "format": {
+       "formatString": ",.0f",
+       "kind": "number"
+      },
+      "formula": "SumIf([Scenario/P&L], [Scenario/Spot Shock %] = -10 and [Scenario/Vol Shock %] = 20)",
+      "id": "kv-c1",
+      "name": "Shock P&L"
+     },
+     {
+      "format": {
+       "formatString": ",.0f",
+       "kind": "number"
+      },
+      "formula": "-400000",
+      "id": "kl-c1",
+      "name": "Limit -400,000"
+     }
+    ],
+    "comparison": {
+     "colorBad": "#b4231a",
+     "colorGood": "#1e7a3c",
+     "display": "delta"
+    },
+    "comparisonColumn": {
+     "columnId": "kl-c1"
+    },
+    "description": {
+     "text": "Breach when shock P&L falls below -400,000. The comparison shows headroom to that limit."
+    },
+    "id": "k-c1",
+    "kind": "kpi-chart",
+    "name": "Spot \u221210% / Vol +20%",
+    "source": {
+     "elementId": "t-scn",
+     "kind": "table"
+    },
+    "style": {
+     "backgroundColor": "transparent",
+     "borderColor": "#e3e6e8",
+     "borderRadius": "round",
+     "borderWidth": 0
+    },
+    "value": {
+     "columnId": "kv-c1"
+    }
+   },
+   {
+    "body": "{{If(SumIf([Scenario/P&L], [Scenario/Spot Shock %] = -10 and [Scenario/Vol Shock %] = 20) <= -400000, \"\u25c6 BREACH\", If(SumIf([Scenario/P&L], [Scenario/Spot Shock %] = -10 and [Scenario/Vol Shock %] = 20) <= -320000, \"\u25c6 NEAR\", \"\u25cf OK\"))}}",
+    "id": "NlB0saDmDI",
+    "kind": "text"
+   },
+   {
+    "elementGap": "hidden",
+    "id": "wRdTGUCK_Y",
+    "kind": "container",
+    "style": {
+     "backgroundColor": "#f9f9f7",
+     "padding": "none"
+    }
+   },
+   {
+    "columns": [
+     {
+      "format": {
+       "formatString": ",.0f",
+       "kind": "number"
+      },
+      "formula": "SumIf([Scenario/P&L], [Scenario/Spot Shock %] = -5 and [Scenario/Vol Shock %] = 10)",
+      "id": "kv-c2",
+      "name": "Shock P&L"
+     },
+     {
+      "format": {
+       "formatString": ",.0f",
+       "kind": "number"
+      },
+      "formula": "-200000",
+      "id": "kl-c2",
+      "name": "Limit -200,000"
+     }
+    ],
+    "comparison": {
+     "colorBad": "#b4231a",
+     "colorGood": "#1e7a3c",
+     "display": "delta"
+    },
+    "comparisonColumn": {
+     "columnId": "kl-c2"
+    },
+    "description": {
+     "text": "Breach when shock P&L falls below -200,000. The comparison shows headroom to that limit."
+    },
+    "id": "k-c2",
+    "kind": "kpi-chart",
+    "name": "Spot \u22125% / Vol +10%",
+    "source": {
+     "elementId": "t-scn",
+     "kind": "table"
+    },
+    "style": {
+     "backgroundColor": "transparent",
+     "borderColor": "#e3e6e8",
+     "borderRadius": "round",
+     "borderWidth": 0
+    },
+    "value": {
+     "columnId": "kv-c2"
+    }
+   },
+   {
+    "body": "{{If(SumIf([Scenario/P&L], [Scenario/Spot Shock %] = -5 and [Scenario/Vol Shock %] = 10) <= -200000, \"\u25c6 BREACH\", If(SumIf([Scenario/P&L], [Scenario/Spot Shock %] = -5 and [Scenario/Vol Shock %] = 10) <= -160000, \"\u25c6 NEAR\", \"\u25cf OK\"))}}",
+    "id": "-3W_Xarvrc",
+    "kind": "text"
+   },
+   {
+    "elementGap": "hidden",
+    "id": "2vWmnTXH7L",
+    "kind": "container",
+    "spacing": "small",
+    "style": {
+     "backgroundColor": "#f9f9f7",
+     "borderRadius": "round",
+     "padding": "none"
+    }
+   },
+   {
+    "columns": [
+     {
+      "format": {
+       "formatString": ",.0f",
+       "kind": "number"
+      },
+      "formula": "SumIf([Scenario/P&L], [Scenario/Spot Shock %] = 0 and [Scenario/Vol Shock %] = -10)",
+      "id": "kv-c3",
+      "name": "Shock P&L"
+     },
+     {
+      "format": {
+       "formatString": ",.0f",
+       "kind": "number"
+      },
+      "formula": "-375000",
+      "id": "kl-c3",
+      "name": "Limit -375,000"
+     }
+    ],
+    "comparison": {
+     "colorBad": "#b4231a",
+     "colorGood": "#1e7a3c",
+     "display": "delta"
+    },
+    "comparisonColumn": {
+     "columnId": "kl-c3"
+    },
+    "description": {
+     "text": "Breach when shock P&L falls below -375,000. The comparison shows headroom to that limit."
+    },
+    "id": "k-c3",
+    "kind": "kpi-chart",
+    "name": "Spot 0% / Vol \u221210%",
+    "source": {
+     "elementId": "t-scn",
+     "kind": "table"
+    },
+    "style": {
+     "backgroundColor": "transparent",
+     "borderColor": "#e3e6e8",
+     "borderRadius": "round",
+     "borderWidth": 0
+    },
+    "value": {
+     "columnId": "kv-c3"
+    }
+   },
+   {
+    "body": "{{If(SumIf([Scenario/P&L], [Scenario/Spot Shock %] = 0 and [Scenario/Vol Shock %] = -10) <= -375000, \"\u25c6 BREACH\", If(SumIf([Scenario/P&L], [Scenario/Spot Shock %] = 0 and [Scenario/Vol Shock %] = -10) <= -300000, \"\u25c6 NEAR\", \"\u25cf OK\"))}}",
+    "id": "b8iTdzAUFT",
+    "kind": "text"
+   },
+   {
+    "elementGap": "hidden",
+    "id": "c-mon",
+    "kind": "container",
+    "style": {
+     "backgroundColor": "#f9f9f7",
+     "borderColor": "#e8e8e7",
+     "borderRadius": "round",
+     "borderWidth": 1
+    }
+   },
+   {
+    "body": "**Single Name Shock Monitor \u2014 Positions Above Limits**",
+    "id": "mon-h",
+    "kind": "text",
+    "verticalAlign": "middle"
+   },
+   {
+    "body": "- <p class=\"p-small\">Stocks/ETFs with 1-month implied vol **\u2264 30**: consider 10% spot move / 20% vol move, and 20% spot move / 40% vol move \u2014 **{{CountDistinct([Underlier Book/Symbol]) - CountIf([Underlier Book/1m Implied Vol %] >= 30)}}** names</p>\n- <p class=\"p-small\">Stocks/ETFs with 1-month implied vol **between 30 and 50**: consider 15% spot / 20% vol, and 30% spot / 40% vol \u2014 **{{CountIf([Underlier Book/1m Implied Vol %] >= 30) - CountIf([Underlier Book/1m Implied Vol %] >= 50)}}** names</p>\n- <p class=\"p-small\">Stocks/ETFs with 1-month implied vol **\u2265 50**: consider 20% spot / 20% vol, and 40% spot / 40% vol \u2014 **{{CountIf([Underlier Book/1m Implied Vol %] >= 50)}}** names</p>",
+    "id": "mon-b",
+    "kind": "text",
+    "verticalAlign": "middle"
+   },
+   {
+    "id": "l5ap2qOZ7D",
+    "kind": "container",
+    "style": {
+     "backgroundColor": "#ffffff",
+     "borderColor": {
+      "kind": "theme",
+      "ref": "colors-border"
+     },
+     "borderWidth": 2
+    }
+   },
+   {
+    "columns": [
+     {
+      "formula": "[Earnings/Symbol]",
+      "id": "pe-sym",
+      "name": "BaseSecurity"
+     },
+     {
+      "formula": "DateTrunc(\"day\", [Earnings Date (1)])",
+      "id": "_HDFhLfsZR",
+      "name": "Earnings Date"
+     },
+     {
+      "formula": "Text([Earnings/Implied Move %]) & \"%\"",
+      "id": "Kn6KvGjQQI",
+      "name": "Implied Move"
+     },
+     {
+      "format": {
+       "formatString": ",.0f",
+       "kind": "number"
+      },
+      "formula": "[Earnings/Move (straddles)]",
+      "id": "pe-k",
+      "name": "Straddles"
+     },
+     {
+      "format": {
+       "formatString": ",.0f",
+       "kind": "number"
+      },
+      "formula": "Sum([Earnings/P&L])",
+      "id": "pe-pnl",
+      "name": "P&L"
+     },
+     {
+      "formula": "[Earnings/Earnings Date]",
+      "id": "kYpQp0i-Nj"
+     }
+    ],
+    "columnsBy": [
+     {
+      "id": "pe-k"
+     }
+    ],
+    "conditionalFormats": [
+     {
+      "columnIds": [
+       "pe-pnl"
+      ],
+      "condition": "formula",
+      "formula": "[P&L] >= 165000",
+      "includeValues": true,
+      "style": {
+       "backgroundColor": "#4E7FB3",
+       "color": "#FFFFFF"
+      },
+      "type": "single"
+     },
+     {
+      "columnIds": [
+       "pe-pnl"
+      ],
+      "condition": "formula",
+      "formula": "[P&L] >= 60000 and [P&L] < 165000",
+      "includeValues": true,
+      "style": {
+       "backgroundColor": "#7FA6CC",
+       "color": "#111827"
+      },
+      "type": "single"
+     },
+     {
+      "columnIds": [
+       "pe-pnl"
+      ],
+      "condition": "formula",
+      "formula": "[P&L] >= 15000 and [P&L] < 60000",
+      "includeValues": true,
+      "style": {
+       "backgroundColor": "#B9CFE4",
+       "color": "#111827"
+      },
+      "type": "single"
+     },
+     {
+      "columnIds": [
+       "pe-pnl"
+      ],
+      "condition": "formula",
+      "formula": "[P&L] >= 3600 and [P&L] < 15000",
+      "includeValues": true,
+      "style": {
+       "backgroundColor": "#DEE9F3",
+       "color": "#111827"
+      },
+      "type": "single"
+     },
+     {
+      "columnIds": [
+       "pe-pnl"
+      ],
+      "condition": "formula",
+      "formula": "[P&L] >= -15000 and [P&L] < -3600",
+      "includeValues": true,
+      "style": {
+       "backgroundColor": "#FBE4DE",
+       "color": "#111827"
+      },
+      "type": "single"
+     },
+     {
+      "columnIds": [
+       "pe-pnl"
+      ],
+      "condition": "formula",
+      "formula": "[P&L] >= -60000 and [P&L] < -15000",
+      "includeValues": true,
+      "style": {
+       "backgroundColor": "#EFBFB4",
+       "color": "#111827"
+      },
+      "type": "single"
+     },
+     {
+      "columnIds": [
+       "pe-pnl"
+      ],
+      "condition": "formula",
+      "formula": "[P&L] >= -165000 and [P&L] < -60000",
+      "includeValues": true,
+      "style": {
+       "backgroundColor": "#E0937F",
+       "color": "#111827"
+      },
+      "type": "single"
+     },
+     {
+      "columnIds": [
+       "pe-pnl"
+      ],
+      "condition": "formula",
+      "formula": "[P&L] < -165000",
+      "includeValues": true,
+      "style": {
+       "backgroundColor": "#D0674B",
+       "color": "#FFFFFF"
+      },
+      "type": "single"
+     }
+    ],
+    "description": {
+     "text": "Options held through earnings within 15d  \u00b7  Color Scale = P&L intensity (Dark Red/Loss >> Dark Blue/Gain)"
+    },
+    "display": {
+     "rowLayout": "separate-columns"
+    },
+    "id": "pvt-earn",
+    "kind": "pivot-table",
+    "name": {
+     "fontWeight": "bold",
+     "text": "Earnings Move Shock Matrix (by # of Straddles)"
+    },
+    "rowsBy": [
+     {
+      "id": "pe-sym"
+     },
+     {
+      "id": "_HDFhLfsZR"
+     },
+     {
+      "id": "Kn6KvGjQQI"
+     }
+    ],
+    "source": {
+     "elementId": "t-earn",
+     "kind": "table"
+    },
+    "style": {
+     "backgroundColor": "transparent",
+     "borderColor": "#e3e6e8",
+     "borderRadius": "round",
+     "borderWidth": 0
+    },
+    "totals": {
+     "showGrandTotals": "hidden",
+     "showSubtotals": "when-collapsed"
+    },
+    "values": [
+     "pe-pnl"
+    ]
+   },
+   {
+    "body": "<p class=\"p-small\">*\\*Excludes options expiring before earnings. **********{{CountDistinct([Earnings/Symbol])}}********** names held through earnings within 15d, across **********{{CountIf([Position Book/Held Thru Earnings] = True)}}********** option legs.*</p>",
+    "id": "IgMSnjFTeq",
+    "kind": "text"
+   },
+   {
+    "columns": [
+     {
+      "format": {
+       "formatString": ".0%",
+       "kind": "number"
+      },
+      "formula": "[Scenario/Vol Shock]",
+      "id": "pm-vol",
+      "name": "Vol Shock"
+     },
+     {
+      "format": {
+       "formatString": ".0%",
+       "kind": "number"
+      },
+      "formula": "[Scenario/Spot Shock]",
+      "id": "pm-spot",
+      "name": "Spot Shock"
+     },
+     {
+      "format": {
+       "formatString": ",.0f",
+       "kind": "number"
+      },
+      "formula": "Sum([Scenario/P&L])",
+      "id": "pm-pnl",
+      "name": "P&L"
+     }
+    ],
+    "columnsBy": [
+     {
+      "id": "pm-spot"
+     }
+    ],
+    "conditionalFormats": [
+     {
+      "columnIds": [
+       "pm-pnl"
+      ],
+      "condition": "formula",
+      "formula": "[P&L] >= 6600000",
+      "includeValues": true,
+      "style": {
+       "backgroundColor": "#4E7FB3",
+       "color": "#FFFFFF"
+      },
+      "type": "single"
+     },
+     {
+      "columnIds": [
+       "pm-pnl"
+      ],
+      "condition": "formula",
+      "formula": "[P&L] >= 2400000 and [P&L] < 6600000",
+      "includeValues": true,
+      "style": {
+       "backgroundColor": "#7FA6CC",
+       "color": "#111827"
+      },
+      "type": "single"
+     },
+     {
+      "columnIds": [
+       "pm-pnl"
+      ],
+      "condition": "formula",
+      "formula": "[P&L] >= 600000 and [P&L] < 2400000",
+      "includeValues": true,
+      "style": {
+       "backgroundColor": "#B9CFE4",
+       "color": "#111827"
+      },
+      "type": "single"
+     },
+     {
+      "columnIds": [
+       "pm-pnl"
+      ],
+      "condition": "formula",
+      "formula": "[P&L] >= 144000 and [P&L] < 600000",
+      "includeValues": true,
+      "style": {
+       "backgroundColor": "#DEE9F3",
+       "color": "#111827"
+      },
+      "type": "single"
+     },
+     {
+      "columnIds": [
+       "pm-pnl"
+      ],
+      "condition": "formula",
+      "formula": "[P&L] >= -600000 and [P&L] < -144000",
+      "includeValues": true,
+      "style": {
+       "backgroundColor": "#FBE4DE",
+       "color": "#111827"
+      },
+      "type": "single"
+     },
+     {
+      "columnIds": [
+       "pm-pnl"
+      ],
+      "condition": "formula",
+      "formula": "[P&L] >= -2400000 and [P&L] < -600000",
+      "includeValues": true,
+      "style": {
+       "backgroundColor": "#EFBFB4",
+       "color": "#111827"
+      },
+      "type": "single"
+     },
+     {
+      "columnIds": [
+       "pm-pnl"
+      ],
+      "condition": "formula",
+      "formula": "[P&L] >= -6600000 and [P&L] < -2400000",
+      "includeValues": true,
+      "style": {
+       "backgroundColor": "#E0937F",
+       "color": "#111827"
+      },
+      "type": "single"
+     },
+     {
+      "columnIds": [
+       "pm-pnl"
+      ],
+      "condition": "formula",
+      "formula": "[P&L] < -6600000",
+      "includeValues": true,
+      "style": {
+       "backgroundColor": "#D0674B",
+       "color": "#FFFFFF"
+      },
+      "type": "single"
+     }
+    ],
+    "description": {
+     "text": "index/ETF shock  \u00b7  total portfolio P&L across the spot \u00d7 implied-vol grid  \u00b7  colour = P&L intensity (Dark Red/Loss >> Dark Blue/Gain)"
+    },
+    "id": "pvt-ms",
+    "kind": "pivot-table",
+    "name": {
+     "fontWeight": "bold",
+     "text": "Market Shock Matrix"
+    },
+    "rowsBy": [
+     {
+      "id": "pm-vol"
+     }
+    ],
+    "source": {
+     "elementId": "t-scn",
+     "kind": "table"
+    },
+    "style": {
+     "backgroundColor": "#ffffff",
+     "borderColor": "#e3e6e8",
+     "borderRadius": "round",
+     "borderWidth": 2
+    },
+    "totals": {
+     "showGrandTotals": "hidden"
+    },
+    "values": [
+     "pm-pnl"
+    ]
+   },
+   {
+    "columns": [
+     {
+      "formula": "[Scenario/Symbol]",
+      "id": "pc-sym",
+      "name": "BaseSecurity"
+     },
+     {
+      "formula": "[Scenario/Sector]",
+      "id": "pc-sec",
+      "name": "Sector"
+     },
+     {
+      "format": {
+       "formatString": ",.0f",
+       "kind": "number"
+      },
+      "formula": "SumIf([Scenario/P&L], [Scenario/Spot Shock %] = -10 and [Scenario/Vol Shock %] = 20)",
+      "id": "pc-pnl",
+      "name": "Shock P&L"
+     }
+    ],
+    "description": {
+     "text": "P&L by underlier under the headline shock (spot \u221210% / vol +20%), largest contribution first."
+    },
+    "display": {
+     "rowLayout": "separate-columns"
+    },
+    "id": "pvt-contrib",
+    "kind": "pivot-table",
+    "name": {
+     "fontWeight": "bold",
+     "text": "Contributors"
+    },
+    "rowsBy": [
+     {
+      "id": "pc-sym",
+      "sort": {
+       "by": "pc-pnl",
+       "direction": "descending"
+      }
+     },
+     {
+      "id": "pc-sec",
+      "sort": {
+       "by": "pc-pnl",
+       "direction": "descending"
+      }
+     }
+    ],
+    "source": {
+     "elementId": "t-scn",
+     "kind": "table"
+    },
+    "style": {
+     "backgroundColor": "#ffffff",
+     "borderColor": "#e3e6e8",
+     "borderRadius": "round",
+     "borderWidth": 1
+    },
+    "totals": {
+     "showGrandTotals": "hidden",
+     "showSubtotals": "when-collapsed"
+    },
+    "values": [
+     "pc-pnl"
+    ]
+   },
+   {
+    "columns": [
+     {
+      "formula": "[Scenario/Sector]",
+      "id": "pl-sec",
+      "name": "Sector"
+     },
+     {
+      "format": {
+       "formatString": ".0%",
+       "kind": "number"
+      },
+      "formula": "[Scenario/Spot Shock]",
+      "id": "pl-spot",
+      "name": "Spot Shock"
+     },
+     {
+      "format": {
+       "formatString": ",.0f",
+       "kind": "number"
+      },
+      "formula": "Sum([Scenario/P&L])",
+      "id": "pl-pnl",
+      "name": "P&L"
+     }
+    ],
+    "columnsBy": [
+     {
+      "id": "pl-spot"
+     }
+    ],
+    "conditionalFormats": [
+     {
+      "columnIds": [
+       "pl-pnl"
+      ],
+      "condition": "formula",
+      "formula": "[P&L] >= 4400000",
+      "includeValues": true,
+      "style": {
+       "backgroundColor": "#4E7FB3",
+       "color": "#FFFFFF"
+      },
+      "type": "single"
+     },
+     {
+      "columnIds": [
+       "pl-pnl"
+      ],
+      "condition": "formula",
+      "formula": "[P&L] >= 1600000 and [P&L] < 4400000",
+      "includeValues": true,
+      "style": {
+       "backgroundColor": "#7FA6CC",
+       "color": "#111827"
+      },
+      "type": "single"
+     },
+     {
+      "columnIds": [
+       "pl-pnl"
+      ],
+      "condition": "formula",
+      "formula": "[P&L] >= 400000 and [P&L] < 1600000",
+      "includeValues": true,
+      "style": {
+       "backgroundColor": "#B9CFE4",
+       "color": "#111827"
+      },
+      "type": "single"
+     },
+     {
+      "columnIds": [
+       "pl-pnl"
+      ],
+      "condition": "formula",
+      "formula": "[P&L] >= 96000 and [P&L] < 400000",
+      "includeValues": true,
+      "style": {
+       "backgroundColor": "#DEE9F3",
+       "color": "#111827"
+      },
+      "type": "single"
+     },
+     {
+      "columnIds": [
+       "pl-pnl"
+      ],
+      "condition": "formula",
+      "formula": "[P&L] >= -400000 and [P&L] < -96000",
+      "includeValues": true,
+      "style": {
+       "backgroundColor": "#FBE4DE",
+       "color": "#111827"
+      },
+      "type": "single"
+     },
+     {
+      "columnIds": [
+       "pl-pnl"
+      ],
+      "condition": "formula",
+      "formula": "[P&L] >= -1600000 and [P&L] < -400000",
+      "includeValues": true,
+      "style": {
+       "backgroundColor": "#EFBFB4",
+       "color": "#111827"
+      },
+      "type": "single"
+     },
+     {
+      "columnIds": [
+       "pl-pnl"
+      ],
+      "condition": "formula",
+      "formula": "[P&L] >= -4400000 and [P&L] < -1600000",
+      "includeValues": true,
+      "style": {
+       "backgroundColor": "#E0937F",
+       "color": "#111827"
+      },
+      "type": "single"
+     },
+     {
+      "columnIds": [
+       "pl-pnl"
+      ],
+      "condition": "formula",
+      "formula": "[P&L] < -4400000",
+      "includeValues": true,
+      "style": {
+       "backgroundColor": "#D0674B",
+       "color": "#FFFFFF"
+      },
+      "type": "single"
+     }
+    ],
+    "description": {
+     "text": "The worst cell in the shock grid for each sector, and the portfolio's worst-case outcome overall."
+    },
+    "id": "pvt-maxloss",
+    "kind": "pivot-table",
+    "name": {
+     "fontWeight": "bold",
+     "text": "Max Loss"
+    },
+    "rowsBy": [
+     {
+      "id": "pl-sec"
+     }
+    ],
+    "source": {
+     "elementId": "t-scn",
+     "kind": "table"
+    },
+    "style": {
+     "backgroundColor": "#ffffff",
+     "borderColor": "#e3e6e8",
+     "borderRadius": "round",
+     "borderWidth": 1
+    },
+    "totals": {
+     "showGrandTotals": "hidden"
+    },
+    "values": [
+     "pl-pnl"
+    ]
+   },
+   {
+    "columns": [
+     {
+      "formula": "[Underlier Book/Symbol]",
+      "id": "sv-sym",
+      "name": "Symbol"
+     },
+     {
+      "formula": "[Underlier Book/Name]",
+      "id": "sv-name",
+      "name": "Name"
+     },
+     {
+      "formula": "[Underlier Book/Sector]",
+      "id": "sv-sec",
+      "name": "Sector"
+     },
+     {
+      "format": {
+       "formatString": ",.2f",
+       "kind": "number"
+      },
+      "formula": "[Underlier Book/Spot]",
+      "id": "sv-spot",
+      "name": "Spot"
+     },
+     {
+      "format": {
+       "formatString": ",.1f",
+       "kind": "number"
+      },
+      "formula": "[Underlier Book/1m Implied Vol %]",
+      "id": "sv-iv",
+      "name": "1m IV %"
+     },
+     {
+      "formula": "[Underlier Book/Vol Tier]",
+      "id": "sv-tier",
+      "name": "Vol Tier"
+     },
+     {
+      "formula": "If([Underlier Book/1m Implied Vol %] <= 30, \"10%/20% \u00b7 20%/40%\", If([Underlier Book/1m Implied Vol %] < 50, \"15%/20% \u00b7 30%/40%\", \"20%/20% \u00b7 40%/40%\"))",
+      "id": "sv-pol",
+      "name": "Shock Policy"
+     }
+    ],
+    "conditionalFormats": [
+     {
+      "columnIds": [
+       "sv-iv"
+      ],
+      "condition": ">",
+      "style": {
+       "backgroundColor": "#FDE8E6",
+       "color": "#B4231A"
+      },
+      "type": "single",
+      "value": 50
+     },
+     {
+      "columnIds": [
+       "sv-iv"
+      ],
+      "condition": "<",
+      "style": {
+       "backgroundColor": "#E7F6EC",
+       "color": "#1E7A3C"
+      },
+      "type": "single",
+      "value": 30
+     }
+    ],
+    "description": "1-month implied vol by underlier, highest first, with the shock policy its tier attracts \u2014 the rules from the monitor note on the Sensitivity tab.",
+    "id": "tbl-snvol",
+    "kind": "table",
+    "name": {
+     "fontWeight": "bold",
+     "text": "Single-Name Vol"
+    },
+    "order": [
+     "sv-sym",
+     "sv-name",
+     "sv-sec",
+     "sv-spot",
+     "sv-iv",
+     "sv-tier",
+     "sv-pol"
+    ],
+    "sort": [
+     {
+      "columnId": "sv-iv",
+      "direction": "descending",
+      "nulls": "last"
+     }
+    ],
+    "source": {
+     "elementId": "t-und",
+     "kind": "table"
+    },
+    "style": {
+     "backgroundColor": "#ffffff",
+     "borderColor": "#e3e6e8",
+     "borderRadius": "round",
+     "borderWidth": 1
+    }
+   },
+   {
+    "columns": [
+     {
+      "formula": "[Scenario/Symbol]",
+      "id": "sw-sym",
+      "name": "BaseSecurity"
+     },
+     {
+      "formula": "[Scenario/Sector]",
+      "id": "sw-sec",
+      "name": "Sector"
+     },
+     {
+      "format": {
+       "formatString": ",.0f",
+       "kind": "number"
+      },
+      "formula": "Min([Scenario/P&L])",
+      "id": "sw-min",
+      "name": "Worst-case P&L"
+     }
+    ],
+    "description": {
+     "text": "Each underlier's worst-case P&L across the full shock grid \u2014 the names that hurt most if the tail arrives."
+    },
+    "display": {
+     "rowLayout": "separate-columns"
+    },
+    "id": "pvt-snworst",
+    "kind": "pivot-table",
+    "name": {
+     "fontWeight": "bold",
+     "text": "SN Worst"
+    },
+    "rowsBy": [
+     {
+      "id": "sw-sym",
+      "sort": {
+       "by": "sw-min",
+       "direction": "ascending"
+      }
+     },
+     {
+      "id": "sw-sec",
+      "sort": {
+       "by": "sw-min",
+       "direction": "ascending"
+      }
+     }
+    ],
+    "source": {
+     "elementId": "t-scn",
+     "kind": "table"
+    },
+    "style": {
+     "backgroundColor": "#ffffff",
+     "borderColor": "#e3e6e8",
+     "borderRadius": "round",
+     "borderWidth": 1
+    },
+    "totals": {
+     "showGrandTotals": "hidden",
+     "showSubtotals": "when-collapsed"
+    },
+    "values": [
+     "sw-min"
+    ]
+   },
+   {
+    "id": "jRRmf7sfhR",
+    "kind": "container",
+    "style": {
+     "backgroundColor": "#ffffff",
+     "borderColor": {
+      "kind": "theme",
+      "ref": "colors-border"
+     },
+     "borderWidth": 2
+    }
+   },
+   {
+    "body": "**Ask the Desk**\n\n<p class=\"p-small\">The same governed numbers, live \u2014 **{{CountDistinct([Position Book/Position ID])}}** legs across **{{CountDistinct([Underlier Book/Symbol])}}** underliers. Interrogate the book without re-running the report.</p>",
+    "id": "chat-cap",
+    "kind": "text",
+    "verticalAlign": "middle"
+   },
+   {
+    "agentId": "ag-risk",
+    "id": "chat",
+    "kind": "chat"
+   },
+   {
+    "columns": [
+     {
+      "formula": "[Underliers/Symbol]",
+      "id": "t-und-0",
+      "name": "Symbol"
+     },
+     {
+      "formula": "[Underliers/Name]",
+      "id": "t-und-1",
+      "name": "Name"
+     },
+     {
+      "formula": "[Underliers/Sector]",
+      "id": "t-und-2",
+      "name": "Sector"
+     },
+     {
+      "formula": "[Underliers/Spot]",
+      "id": "t-und-3",
+      "name": "Spot"
+     },
+     {
+      "formula": "[Underliers/1m Implied Vol %]",
+      "id": "t-und-4",
+      "name": "1m Implied Vol %"
+     },
+     {
+      "formula": "[Underliers/Vol Tier]",
+      "id": "t-und-5",
+      "name": "Vol Tier"
+     },
+     {
+      "formula": "[Underliers/Liquidity Rank]",
+      "id": "t-und-6",
+      "name": "Liquidity Rank"
+     },
+     {
+      "formula": "[Underliers/Earnings Date]",
+      "id": "t-und-7",
+      "name": "Earnings Date"
+     },
+     {
+      "formula": "[Underliers/Earnings Implied Move %]",
+      "id": "t-und-8",
+      "name": "Earnings Implied Move %"
+     }
+    ],
+    "id": "t-und",
+    "kind": "table",
+    "name": "Underlier Book",
+    "order": [
+     "t-und-0",
+     "t-und-1",
+     "t-und-2",
+     "t-und-3",
+     "t-und-4",
+     "t-und-5",
+     "t-und-6",
+     "t-und-7",
+     "t-und-8"
+    ],
+    "source": {
+     "dataModelId": "5ed708b5-5984-483c-9381-0cbff183a27f",
+     "elementId": "underliers",
+     "kind": "data-model"
+    }
+   },
+   {
+    "columns": [
+     {
+      "formula": "[Positions/Position ID]",
+      "id": "t-pos-0",
+      "name": "Position ID"
+     },
+     {
+      "formula": "[Positions/Symbol]",
+      "id": "t-pos-1",
+      "name": "Symbol"
+     },
+     {
+      "formula": "[Positions/Name]",
+      "id": "t-pos-2",
+      "name": "Name"
+     },
+     {
+      "formula": "[Positions/Sector]",
+      "id": "t-pos-3",
+      "name": "Sector"
+     },
+     {
+      "formula": "[Positions/Type]",
+      "id": "t-pos-4",
+      "name": "Type"
+     },
+     {
+      "formula": "[Positions/Side]",
+      "id": "t-pos-5",
+      "name": "Side"
+     },
+     {
+      "formula": "[Positions/Strike]",
+      "id": "t-pos-6",
+      "name": "Strike"
+     },
+     {
+      "formula": "[Positions/Spot]",
+      "id": "t-pos-7",
+      "name": "Spot"
+     },
+     {
+      "formula": "[Positions/Moneyness]",
+      "id": "t-pos-8",
+      "name": "Moneyness"
+     },
+     {
+      "formula": "[Positions/DTE]",
+      "id": "t-pos-9",
+      "name": "DTE"
+     },
+     {
+      "formula": "[Positions/Position IV %]",
+      "id": "t-pos-10",
+      "name": "Position IV %"
+     },
+     {
+      "formula": "[Positions/Contracts]",
+      "id": "t-pos-11",
+      "name": "Contracts"
+     },
+     {
+      "formula": "[Positions/Option Price]",
+      "id": "t-pos-12",
+      "name": "Option Price"
+     },
+     {
+      "formula": "[Positions/Market Value]",
+      "id": "t-pos-13",
+      "name": "Market Value"
+     },
+     {
+      "formula": "[Positions/Delta]",
+      "id": "t-pos-14",
+      "name": "Delta"
+     },
+     {
+      "formula": "[Positions/Gamma]",
+      "id": "t-pos-15",
+      "name": "Gamma"
+     },
+     {
+      "formula": "[Positions/Vega]",
+      "id": "t-pos-16",
+      "name": "Vega"
+     },
+     {
+      "formula": "[Positions/Theta]",
+      "id": "t-pos-17",
+      "name": "Theta"
+     },
+     {
+      "formula": "[Positions/Delta $]",
+      "id": "t-pos-18",
+      "name": "Delta $"
+     },
+     {
+      "formula": "[Positions/Vega $ per Pt]",
+      "id": "t-pos-19",
+      "name": "Vega $ per Pt"
+     },
+     {
+      "formula": "[Positions/Gamma $ per 1pct]",
+      "id": "t-pos-20",
+      "name": "Gamma $ per 1pct"
+     },
+     {
+      "formula": "[Positions/Vol Tier]",
+      "id": "t-pos-21",
+      "name": "Vol Tier"
+     },
+     {
+      "formula": "[Positions/Held Thru Earnings]",
+      "id": "t-pos-22",
+      "name": "Held Thru Earnings"
+     }
+    ],
+    "id": "t-pos",
+    "kind": "table",
+    "name": "Position Book",
+    "order": [
+     "t-pos-0",
+     "t-pos-1",
+     "t-pos-2",
+     "t-pos-3",
+     "t-pos-4",
+     "t-pos-5",
+     "t-pos-6",
+     "t-pos-7",
+     "t-pos-8",
+     "t-pos-9",
+     "t-pos-10",
+     "t-pos-11",
+     "t-pos-12",
+     "t-pos-13",
+     "t-pos-14",
+     "t-pos-15",
+     "t-pos-16",
+     "t-pos-17",
+     "t-pos-18",
+     "t-pos-19",
+     "t-pos-20",
+     "t-pos-21",
+     "t-pos-22"
+    ],
+    "source": {
+     "dataModelId": "5ed708b5-5984-483c-9381-0cbff183a27f",
+     "elementId": "positions",
+     "kind": "data-model"
+    }
+   },
+   {
+    "columns": [
+     {
+      "formula": "[Scenario PnL/Symbol]",
+      "id": "t-scn-0",
+      "name": "Symbol"
+     },
+     {
+      "formula": "[Scenario PnL/Sector]",
+      "id": "t-scn-1",
+      "name": "Sector"
+     },
+     {
+      "formula": "[Scenario PnL/Type]",
+      "id": "t-scn-2",
+      "name": "Type"
+     },
+     {
+      "formula": "[Scenario PnL/Side]",
+      "id": "t-scn-3",
+      "name": "Side"
+     },
+     {
+      "formula": "[Scenario PnL/Spot Shock]",
+      "id": "t-scn-4",
+      "name": "Spot Shock"
+     },
+     {
+      "formula": "[Scenario PnL/Vol Shock]",
+      "id": "t-scn-5",
+      "name": "Vol Shock"
+     },
+     {
+      "formula": "[Scenario PnL/Spot Shock %]",
+      "id": "t-scn-6",
+      "name": "Spot Shock %"
+     },
+     {
+      "formula": "[Scenario PnL/Vol Shock %]",
+      "id": "t-scn-7",
+      "name": "Vol Shock %"
+     },
+     {
+      "formula": "[Scenario PnL/P&L]",
+      "id": "t-scn-8",
+      "name": "P&L"
+     }
+    ],
+    "id": "t-scn",
+    "kind": "table",
+    "name": "Scenario",
+    "order": [
+     "t-scn-0",
+     "t-scn-1",
+     "t-scn-2",
+     "t-scn-3",
+     "t-scn-4",
+     "t-scn-5",
+     "t-scn-6",
+     "t-scn-7",
+     "t-scn-8"
+    ],
+    "source": {
+     "dataModelId": "5ed708b5-5984-483c-9381-0cbff183a27f",
+     "elementId": "scenario_pnl",
+     "kind": "data-model"
+    }
+   },
+   {
+    "columns": [
+     {
+      "formula": "[Earnings PnL/Symbol]",
+      "id": "t-earn-0",
+      "name": "Symbol"
+     },
+     {
+      "formula": "[Earnings PnL/Sector]",
+      "id": "t-earn-1",
+      "name": "Sector"
+     },
+     {
+      "formula": "[Earnings PnL/Earnings Date]",
+      "id": "t-earn-2",
+      "name": "Earnings Date"
+     },
+     {
+      "formula": "[Earnings PnL/Implied Move %]",
+      "id": "t-earn-3",
+      "name": "Implied Move %"
+     },
+     {
+      "formula": "[Earnings PnL/Move (straddles)]",
+      "id": "t-earn-4",
+      "name": "Move (straddles)"
+     },
+     {
+      "formula": "[Earnings PnL/P&L]",
+      "id": "t-earn-5",
+      "name": "P&L"
+     },
+     {
+      "formula": "[Earnings PnL/# Legs]",
+      "id": "t-earn-6",
+      "name": "# Legs"
+     }
+    ],
+    "id": "t-earn",
+    "kind": "table",
+    "name": "Earnings",
+    "order": [
+     "t-earn-0",
+     "t-earn-1",
+     "t-earn-2",
+     "t-earn-3",
+     "t-earn-4",
+     "t-earn-5",
+     "t-earn-6"
+    ],
+    "source": {
+     "dataModelId": "5ed708b5-5984-483c-9381-0cbff183a27f",
+     "elementId": "earnings_pnl",
+     "kind": "data-model"
+    }
+   },
+   {
+    "body": "<p class=\"p-large\">**Options Arbitrage Risk Report**</p>",
+    "id": "hdr-title",
+    "kind": "text",
+    "verticalAlign": "middle"
+   },
+   {
+    "body": "<p class=\"p-small\"><span style=\"color: #FFFFFF; background-color: #59A14E\">  Intraday  </span></p>",
+    "id": "hdr-badge",
+    "kind": "text",
+    "verticalAlign": "middle"
+   },
+   {
+    "body": "<p class=\"p-small\">Intraday Snapshot {{Now()}}  \u00b7  Report group **OPTIONS ARB (8873)**  \u00b7  **{{CountDistinct([Position Book/Position ID])}}** positions / **{{CountDistinct([Underlier Book/Symbol])}}** underliers  \u00b7</p>",
+    "id": "hdr-meta",
+    "kind": "text",
+    "verticalAlign": "middle"
+   }
+  ],
+  "kind": "workbook",
+  "layout": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<Page type=\"grid\" gridTemplateColumns=\"repeat(24, 1fr)\" gridTemplateRows=\"auto\" id=\"pg\">\n  <TabbedContainer elementId=\"tc\" type=\"tabbed-container\" gridColumn=\"1 / 25\" gridRow=\"1 / 33\">\n    <Tab gridTemplateColumns=\"repeat(24, 1fr)\" gridTemplateRows=\"auto\">\n      <Container elementId=\"r6hmzpyk6G\" type=\"grid\" gridColumn=\"1 / 25\" gridRow=\"1 / 14\" gridTemplateColumns=\"repeat(24, 1fr)\" gridTemplateRows=\"auto\">\n        <Element elementId=\"sec1\" gridColumn=\"1 / 25\" gridRow=\"1 / 3\"/>\n        <Container elementId=\"wR8m4CSfLb\" type=\"grid\" gridColumn=\"1 / 9\" gridRow=\"3 / 11\" gridTemplateColumns=\"repeat(12, 1fr)\" gridTemplateRows=\"auto\">\n          <Element elementId=\"k-c1\" gridColumn=\"1 / 10\" gridRow=\"1 / 9\"/>\n          <Element elementId=\"NlB0saDmDI\" gridColumn=\"10 / 13\" gridRow=\"7 / 9\"/>\n        </Container>\n        <Container elementId=\"wRdTGUCK_Y\" type=\"grid\" gridColumn=\"9 / 17\" gridRow=\"3 / 11\" gridTemplateColumns=\"repeat(12, 1fr)\" gridTemplateRows=\"auto\">\n          <Element elementId=\"k-c2\" gridColumn=\"1 / 10\" gridRow=\"1 / 9\"/>\n          <Element elementId=\"-3W_Xarvrc\" gridColumn=\"10 / 13\" gridRow=\"7 / 9\"/>\n        </Container>\n        <Container elementId=\"2vWmnTXH7L\" type=\"grid\" gridColumn=\"17 / 25\" gridRow=\"3 / 11\" gridTemplateColumns=\"repeat(12, 1fr)\" gridTemplateRows=\"auto\">\n          <Element elementId=\"k-c3\" gridColumn=\"1 / 10\" gridRow=\"1 / 9\"/>\n          <Element elementId=\"b8iTdzAUFT\" gridColumn=\"10 / 13\" gridRow=\"7 / 9\"/>\n        </Container>\n        <Container elementId=\"c-mon\" type=\"grid\" gridColumn=\"1 / 25\" gridRow=\"11 / 14\" gridTemplateColumns=\"repeat(24, 1fr)\" gridTemplateRows=\"auto\">\n          <Element elementId=\"mon-h\" gridColumn=\"2 / 24\" gridRow=\"1 / 2\"/>\n          <Element elementId=\"mon-b\" gridColumn=\"2 / 24\" gridRow=\"2 / 4\"/>\n        </Container>\n      </Container>\n    </Tab>\n    <Tab gridTemplateColumns=\"repeat(24, 1fr)\" gridTemplateRows=\"auto\">\n      <Container elementId=\"l5ap2qOZ7D\" type=\"grid\" gridColumn=\"1 / 25\" gridRow=\"1 / 32\" gridTemplateColumns=\"repeat(24, 1fr)\" gridTemplateRows=\"auto\">\n        <Element elementId=\"pvt-earn\" gridColumn=\"1 / 25\" gridRow=\"1 / 30\"/>\n        <Element elementId=\"IgMSnjFTeq\" gridColumn=\"1 / 13\" gridRow=\"30 / 32\"/>\n      </Container>\n    </Tab>\n    <Tab gridTemplateColumns=\"repeat(24, 1fr)\" gridTemplateRows=\"auto\">\n      <Element elementId=\"pvt-ms\" gridColumn=\"1 / 25\" gridRow=\"1 / 24\"/>\n    </Tab>\n    <Tab gridTemplateColumns=\"repeat(24, 1fr)\" gridTemplateRows=\"auto\">\n      <Element elementId=\"pvt-contrib\" gridColumn=\"1 / 25\" gridRow=\"1 / 32\"/>\n    </Tab>\n    <Tab gridTemplateColumns=\"repeat(24, 1fr)\" gridTemplateRows=\"auto\">\n      <Element elementId=\"pvt-maxloss\" gridColumn=\"1 / 25\" gridRow=\"1 / 28\"/>\n    </Tab>\n    <Tab gridTemplateColumns=\"repeat(24, 1fr)\" gridTemplateRows=\"auto\">\n      <Element elementId=\"tbl-snvol\" gridColumn=\"1 / 25\" gridRow=\"1 / 31\"/>\n    </Tab>\n    <Tab gridTemplateColumns=\"repeat(24, 1fr)\" gridTemplateRows=\"auto\">\n      <Element elementId=\"pvt-snworst\" gridColumn=\"1 / 25\" gridRow=\"1 / 29\"/>\n    </Tab>\n    <Tab gridTemplateColumns=\"repeat(24, 1fr)\" gridTemplateRows=\"auto\">\n      <Container elementId=\"jRRmf7sfhR\" type=\"grid\" gridColumn=\"1 / 25\" gridRow=\"1 / 30\" gridTemplateColumns=\"repeat(24, 1fr)\" gridTemplateRows=\"auto\">\n        <Element elementId=\"chat-cap\" gridColumn=\"1 / 25\" gridRow=\"1 / 3\"/>\n        <Element elementId=\"chat\" gridColumn=\"1 / 25\" gridRow=\"3 / 28\"/>\n      </Container>\n    </Tab>\n  </TabbedContainer>\n</Page>\n<Page type=\"grid\" gridTemplateColumns=\"repeat(24, 1fr)\" gridTemplateRows=\"auto\" id=\"util\">\n  <Element elementId=\"t-und\" gridColumn=\"1 / 25\" gridRow=\"1 / 11\"/>\n  <Element elementId=\"t-pos\" gridColumn=\"1 / 25\" gridRow=\"11 / 21\"/>\n  <Element elementId=\"t-scn\" gridColumn=\"1 / 25\" gridRow=\"21 / 31\"/>\n  <Element elementId=\"t-earn\" gridColumn=\"1 / 25\" gridRow=\"31 / 41\"/>\n</Page>\n<Panel type=\"grid\" gridTemplateColumns=\"repeat(24, 1fr)\" gridTemplateRows=\"auto\" id=\"6t0fnCgAqq\">\n  <Element elementId=\"hdr-title\" gridColumn=\"1 / 7\" gridRow=\"1 / 3\"/>\n  <Element elementId=\"hdr-badge\" gridColumn=\"7 / 9\" gridRow=\"1 / 3\"/>\n  <Element elementId=\"hdr-meta\" gridColumn=\"9 / 25\" gridRow=\"1 / 3\"/>\n</Panel>\n",
+  "pages": [
+   {
+    "id": "pg",
+    "name": "Risk Report"
+   },
+   {
+    "id": "util",
+    "name": "Model Sources",
+    "visibility": "hidden"
+   }
+  ],
+  "panels": [
+   {
+    "id": "6t0fnCgAqq",
+    "pages": [
+     "pg",
+     "util"
+    ],
+    "title": "Header 1",
+    "type": "header"
+   }
+  ],
+  "schemaVersion": 1,
+  "settings": {
+   "navigation": {
+    "pageHeader": "enabled"
+   },
+   "theme": {
+    "overrides": {
+     "categoricalScheme": [
+      "#2f6feb",
+      "#4e7fb3",
+      "#7fa6cc",
+      "#d0674b",
+      "#e0937f",
+      "#6b7280",
+      "#1f2937",
+      "#9ca3af"
+     ],
+     "colorOverrides": {
+      "backgroundCanvas": "#f9f9f7",
+      "canvasBackground": "#f5f6f7"
+     },
+     "colors": {
+      "danger": "#b4231a",
+      "darkMode": "hidden",
+      "highlight": "#2f6feb",
+      "success": "#1e7a3c",
+      "surface": "#8c8c8c",
+      "text": "#111827",
+      "warning": "#8a6410"
+     },
+     "fonts": {
+      "dataFont": "Inter",
+      "textFont": "Inter"
+     },
+     "pageWidth": "full",
+     "space": {
+      "showElementPadding": "shown",
+      "unit": "small"
+     },
+     "tableStyles": {
+      "cellSpacing": "small",
+      "preset": "presentation"
+     }
+    }
+   }
+  }
+ },
+ "name": "Options Arbitrage Risk Report \u2014 replication exemplar"
+}

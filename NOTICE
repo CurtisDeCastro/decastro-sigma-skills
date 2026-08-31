@@ -1,0 +1,17 @@
+decastro-sigma-skills
+Copyright 2026 Curtis DeCastro
+
+This product includes software derived from the Sigma Computing agent skills
+repository (https://github.com/sigmacomputing/sigma-agent-skills), licensed under
+the Apache License, Version 2.0.
+
+Derived, and modified only where noted:
+  skills/sigma-api/
+  skills/sigma-data-models/
+  skills/sigma-embed/
+
+All other skills, scripts, and reference material in this repository are original
+work by the author and are likewise licensed under Apache-2.0.
+
+This repository is not an official Sigma Computing product and is not supported by
+Sigma Computing.

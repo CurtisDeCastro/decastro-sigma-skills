@@ -1,18 +1,24 @@
-# Agent skills for Sigma
+# Sigma agent skills
 
-Multi-provider agent skills for [Sigma Computing](https://sigmacomputing.com). The same shared skill content runs in **Claude Code**, **Cursor**, **OpenAI Codex**, and **Snowflake Cortex Code**.
+Field-tested agent skills for building **production Sigma workbooks in code** — on your own
+warehouse data, via the workbooks-as-code API. The same content runs in **Claude Code**,
+**Cursor**, **OpenAI Codex**, and **Snowflake Cortex Code**.
 
-This repository is a curated, read-only mirror and is not open for contributions. Pull requests and issues from non-maintainers are auto-closed. For questions and feature requests, contact [Sigma Support](https://help.sigmacomputing.com/docs/sigma-support).
+> **Not an official Sigma Computing product.** This is an independent library maintained by
+> [@CurtisDeCastro](https://github.com/CurtisDeCastro). Sigma's official skills live at
+> [`sigmacomputing/sigma-agent-skills`](https://github.com/sigmacomputing/sigma-agent-skills);
+> `sigma-api`, `sigma-data-models`, and `sigma-embed` here are derived from that repo
+> (Apache-2.0) and may lag it. Everything else is original.
 
-Releases are tagged `vX.Y.Z`. To see what shipped in each release, see [`CHANGELOG.md`](./CHANGELOG.md).
+Releases are tagged `vX.Y.Z` — see [`CHANGELOG.md`](./CHANGELOG.md).
 
 ## Installation
 
 ### Claude Code
 
 ```bash
-/plugin marketplace add https://github.com/sigmacomputing/sigma-agent-skills.git
-/plugin install sigma-computing@sigma-computing
+/plugin marketplace add https://github.com/CurtisDeCastro/decastro-sigma-skills.git
+/plugin install decastro-sigma-skills@decastro-sigma-skills
 ```
 
 ### Cursor
@@ -25,48 +31,68 @@ Codex auto-loads `AGENTS.md` from the repo root.
 
 ### Snowflake Cortex Code
 
-Inside a Cortex Code session:
-
 ```
-/skill add https://github.com/sigmacomputing/sigma-agent-skills.git
-```
-
-Skills are cached locally and auto-discovered from `.cortex/skills/`. To update to the latest version:
-
-```
-/skill sync
+/skill add https://github.com/CurtisDeCastro/decastro-sigma-skills.git
 ```
 
 ## Skills
 
-Agents activate these automatically based on the user's request.
-
 | Skill | Description |
 |-------|-------------|
-| **sigma-api** | Authenticate against the Sigma REST API (OAuth client credentials, bearer tokens, base URL per cloud). Prerequisite for the other skills. |
-| **sigma-data-models** | Create, retrieve, or modify a Sigma data model spec (sources, columns, metrics, relationships, filters, controls, folder groupings, column-level security) via the REST API. |
-| **sigma-embed** | Generate server-side Sigma embed URLs (JWT signing, workbook URL construction) and manage per-customer workbook variants via version tags. Covers credential setup, tagged URL construction, per-customer spec composition, and automated tag provisioning. |
+| **sigma-workbook-builder** | **Start here for workbooks.** Build production workbooks in code: production defaults (native elements over hand-built cards, theme-driven styling, live formulas instead of typed numbers, two-tier sourcing), verified element shapes, and the traps that pass `spec/verify` and still render wrong. |
+| **report-to-workbook** | Rebuild an existing report — a screenshot, PDF, HTML page, or a script that emits one — as a live Sigma workbook on your data. |
+| **sigma-workbook-styling** | Visual craft: the `style` object, theme tokens, repeated containers, images and icons, composition. |
+| **sigma-plugin-development** | Build a custom Sigma plugin with the `@sigmacomputing/plugin` SDK. |
+| **sigma-plugin-patterns** | Architectural recipes for plugins (config, state, interaction). |
+| **sigma-api** | Authenticate against the Sigma REST API. Prerequisite for the others. |
+| **sigma-data-models** | Create, retrieve, or modify a Sigma data model spec via the REST API. |
+| **sigma-embed** | Server-side embed URLs (JWT signing) and per-customer workbook variants via version tags. |
 
-## Team Deployment (Claude Code)
+## Prerequisites
 
-To make this plugin available to your entire team in Claude Code automatically, add this plugin to your project's `.claude/settings.json`:
+1. **The Sigma CLI**, authenticated — the only auth mechanism. No `.env`, no client secret,
+   no token file. `SIGMA_PROFILE=<name>` targets a non-default org.
+   ```bash
+   sigma auth login && sigma auth status
+   ```
+2. **Workbooks-as-Code enabled on your org.** There is no admin screen for it — verify by
+   calling the endpoint. `200` = enabled; `404` with `errorcause: UnmatchedHandler` = not:
+   ```bash
+   sigma api workbooks spec get --params '{"workbookId":"<any-workbook-id>"}'
+   ```
+3. **Python 3.9+**, standard library only.
 
-```json
-{
-  "extraKnownMarketplaces": {
-    "sigma-computing": {
-      "source": {
-        "source": "github",
-        "repo": "sigmacomputing/sigma-agent-skills"
-      }
-    }
-  },
-  "enabledPlugins": {
-    "sigma-computing@sigma-computing": true
-  }
-}
+## Tooling (`scripts/`)
+
+| script | purpose |
+|---|---|
+| `api/preflight.sh` | confirm CLI auth |
+| `api/list-connections.sh` · `api/list-folders.sh` | discovery |
+| `api/probe-schema-tables.sh` · `api/list-table-columns.sh` · `api/lookup-path.sh` | warehouse schema |
+| `api/publish-datamodel.sh` · `api/publish-workbook.sh` | POST/PUT a spec (lints first) |
+| `api/query-element.sh` | fetch the data behind a published element |
+| `shot.py` | **render a page or element to PNG** — the verification step |
+| `validate-spec.py` | static lint before you push |
+
+Python helpers: `sigma_spec.verify / create / update / get_spec`, `compose/grid.py::envelope()`.
+
+## The loop
+
 ```
+generate → spec/verify → push → export PNG → LOOK AT THE IMAGE → fix
+```
+
+`spec/verify` checks structure, not whether anything renders. A spec can pass verify, pass
+the linter, round-trip cleanly through GET, and still render every tile broken — see
+`skills/sigma-workbook-builder/reference/traps.md`.
+
+```bash
+python3 scripts/shot.py <workbookId> out.png <pageId>
+ELEMENT=<elementId> python3 scripts/shot.py <workbookId> tile.png <pageId>
+```
+
+PNG export renders only the **active** tab, so scope to an element id to inspect another.
 
 ## License
 
-Apache 2.0 — see [`LICENSE`](./LICENSE).
+Apache-2.0. See [`LICENSE`](./LICENSE) and [`NOTICE`](./NOTICE).
