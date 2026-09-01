@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.6.0 — 2026-09-01
+
+Separates structural defaults from visual ones. The styling values in a reproduction are
+outputs of a matching exercise, not recommendations — the skill now teaches the exercise.
+
+### Added
+
+- **`sigma-workbook-builder/reference/visual-fidelity.md`** — how to match an existing report's look: a table of what to read off the source image (canvas tone, surface, border weight and radius, density, type scale, accent, status colours, heatmap ramp) and which theme or element property each becomes; why sampling from the image beats picking a near-enough named colour; the wrapper-bordered/child-flat composition that avoids the double-border tell; verifying by side-by-side comparison rather than taste; and what to do instead when there is no source to match.
+
+### Changed
+
+- `production-defaults.md` now states up front that its ten rules are **structural and universal**, and that visual values are deliberately absent because they are derived per-source.
+- The heatmap ramp and pill colours in `report-to-workbook` are labelled as one report's sampled values rather than a recommended palette.
+
 ## v0.5.0 — 2026-09-01
 
 Upstream syncing, first tagged releases, and the report-to-data-model step that the

@@ -3,6 +3,12 @@
 Every rule here replaces a first-pass mistake that a reviewer had to correct. Treat them
 as the default; deviating needs a reason you can say out loud.
 
+> **These are structural, not visual.** They hold for any workbook regardless of how it
+> should look. The *visual* values — canvas tone, border weight, radius, density, the
+> accent and status colours — are not in here on purpose: when you are reproducing an
+> existing report those are derived from the source, not chosen. See
+> `visual-fidelity.md`.
+
 ## 1. Reach for the native element before composing one
 
 The single most common failure: building a "KPI card" out of a container + a label text +
@@ -63,6 +69,10 @@ than hardcoded sizes and colours:
 Per-element hex fights the design system, breaks under a theme change, and is the reason a
 code-built workbook looks "almost right." Reserve literal hex for intentional accents:
 heatmap bands, status colours, a brand chip.
+
+**Which values to set is a separate question from setting them here.** If you are matching
+an existing report, read them off the source first — `visual-fidelity.md` has the
+extraction checklist. Do not carry another workbook's palette across.
 
 ## 5. Every number in prose is a formula
 

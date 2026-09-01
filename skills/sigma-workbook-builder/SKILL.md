@@ -32,6 +32,7 @@ reconcile, and a team that maintains the thing for years.
 | `reference/element-shapes.md` | verified shapes for every element kind, controls, layout XML, formulas |
 | `reference/traps.md` | what passes `spec/verify` and still renders wrong |
 | `reference/demo-vs-production.md` | which lessons to take from demo-oriented examples, and which to refuse |
+| `reference/visual-fidelity.md` | matching an existing report's look — extract its visual system, then let the theme cascade |
 | `reference/report-to-data-model.md` | reading a report image into a table list, grain, and parameter grid |
 | `reference/plugins.md` | when a visualization gap justifies a custom plugin, how to wire one in, and how to get it deployed |
 | `examples/exemplar-spec.json` | the defaults applied end to end — read it to see what "done" looks like, not to clone |
@@ -49,8 +50,10 @@ reconcile, and a team that maintains the thing for years.
    `reference/plugins.md` — native element, then native + conditional formatting, then a
    plugin. If a plugin is genuinely warranted, `sigma-plugin-development` builds it and
    `examples/plugins/` has eighteen worked ones named by what they do.
-5. **Theme once, style almost never.** Set colours/fonts/spacing on the theme; use
-   `p-large` / `p-small` in text bodies rather than per-element hex.
+5. **Theme once, style almost never.** If you are matching a source, extract its visual
+   system first (`reference/visual-fidelity.md`) — canvas tone, border weight, radius,
+   density, accent and status colours are *read off the image*, not chosen. Set them on
+   the theme and write almost no per-element `style`.
 6. **Verify by rendering.** Below.
 7. **Ship it as code.** One command rebuilds the workbook, so a change is a reviewable
    diff. That is the point of building this way.

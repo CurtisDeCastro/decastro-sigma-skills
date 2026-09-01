@@ -1,6 +1,6 @@
 {
   "name": "decastro-sigma-skills",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Field-tested agent skills for building production Sigma workbooks in code. Workbooks-as-code authoring, report replication, styling, embeds, data models, and plugin development for Claude Code, Cursor, OpenAI Codex, and Snowflake Cortex Code.",
   "author": {
     "name": "Curtis DeCastro"

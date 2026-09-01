@@ -32,6 +32,9 @@ command instead of an afternoon of clicking.
    three headline cards *and* a matrix is one table queried two ways.
 3. **Publish the data model, then check row counts and magnitudes against the report.**
    Every tile inherits a scale error.
+3b. **Extract the visual system from the image** — canvas tone, surface, border weight and
+   radius, density, type scale, accent and status colours — and set it on the theme. These
+   are read off the source, never carried over from another workbook.
 4. **Build the workbook** from the shapes below.
 5. **Render it and look at it** — see The loop.
 
@@ -110,8 +113,10 @@ that must be read goes in the comparison column's `name`.
    "style":{"backgroundColor":"#7FA6CC","color":"#111827"}}]
 ```
 `separate-columns` is what renders multiple `rowsBy` as real side-by-side columns instead
-of one indented stack. Bands at ±0.55/0.20/0.05/0.012 of a saturation scale, blue
-`#4E7FB3 #7FA6CC #B9CFE4 #DEE9F3` / unpainted / red `#FBE4DE #EFBFB4 #E0937F #D0674B`.
+of one indented stack. Bands at ±0.55/0.20/0.05/0.012 of a saturation scale. **Sample the ramp endpoints from the
+source's own legend** — the hexes below are one report's diverging scale, not a
+recommendation: blue `#4E7FB3 #7FA6CC #B9CFE4 #DEE9F3` / unpainted / red
+`#FBE4DE #EFBFB4 #E0937F #D0674B`.
 Tables sort differently: top-level `"sort":[{"columnId":…,"direction":…,"nulls":"last"}]`.
 
 **Text, HTML, live numbers:**
@@ -119,8 +124,8 @@ Tables sort differently: top-level `"sort":[{"columnId":…,"direction":…,"nul
 <p class="p-small">**{{CountDistinct([Positions/Position ID])}}** positions</p>
 <p class="p-small"><span style="color:#FFF; background-color:#59A14E">  Intraday  </span></p>
 ```
-Bodies accept HTML plus `p-large`/`p-small`; markdown nests inside. Pill colour **must be a
-literal** — the server validates `background-color` at spec time, so it can never be
+Bodies accept HTML plus `p-large`/`p-small`; markdown nests inside. Sample the pill colour
+from the source. Pill colour **must be a literal** — the server validates `background-color` at spec time, so it can never be
 conditional. `{{Now()}}` works. Formulas resolve inside `<p>` and without a sourced element
 in the same container.
 
