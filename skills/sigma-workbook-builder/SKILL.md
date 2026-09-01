@@ -32,15 +32,15 @@ reconcile, and a team that maintains the thing for years.
 | `reference/element-shapes.md` | verified shapes for every element kind, controls, layout XML, formulas |
 | `reference/traps.md` | what passes `spec/verify` and still renders wrong |
 | `reference/demo-vs-production.md` | which lessons to take from demo-oriented examples, and which to refuse |
+| `reference/report-to-data-model.md` | reading a report image into a table list, grain, and parameter grid |
 | `reference/plugins.md` | when a visualization gap justifies a custom plugin, how to wire one in, and how to get it deployed |
-| `examples/exemplar-spec.json` | a complete production-shaped workbook; verifies as a create payload |
+| `examples/exemplar-spec.json` | the defaults applied end to end — read it to see what "done" looks like, not to clone |
 
 ## Procedure
 
-1. **Model first.** Land the computation in the warehouse and put a data model over it. Decide the
-   grain per table in one sentence before writing SQL. Check row counts and magnitudes
-   against a known-good source *before* building any UI — every tile inherits a scale
-   error.
+1. **Model first.** Work `reference/report-to-data-model.md`: find the engines behind the
+   sections, name each table's grain in one sentence, and calibrate against the source
+   *before* building any UI — every tile inherits a scale error.
 2. **Two-tier sourcing.** Data model → thin spine tables on a hidden page → every visual
    reads a spine table. Swapping environments becomes one id change.
 3. **Compose with native elements.** Work down `production-defaults.md`. If you are about

@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.5.0 — 2026-09-01
+
+Upstream syncing, first tagged releases, and the report-to-data-model step that the
+builder was missing.
+
+### Added
+
+- **`bin/sync-upstream.sh`** — vendored sync for the skills that come from Sigma's official repo. Reports drift by default, `--apply` takes upstream's version. Replaces `git merge upstream/main`, which conflicts on `README.md`, `CHANGELOG.md` and all four manifests every time because those have deliberately diverged. Vendored skills carry a `.upstream` marker naming the source commit.
+- **`sigma-cli`** — vendored from upstream, which had added it after this repo forked.
+- **`sigma-workbook-builder/reference/report-to-data-model.md`** — reading a report image into a table list: find the engines behind the sections (a nine-section report is usually two or three computations), name each grain in one sentence, take the parameter grid off the matrix axes, emit both decimal and integer-percent forms, and calibrate magnitudes before building any UI.
+
+### Changed
+
+- The exemplar spec is now positioned as **an illustration of the defaults, not a template to clone** — the point of the skill is that the principles in `production-defaults.md` are applied on the first pass, not that one cached spec is reproduced.
+- `README.md` documents the vendoring model and the SAML caveat (the GitHub API for `sigmacomputing` is gated; plain `git fetch` is not).
+
+### Fixed
+
+- `README.md` claimed "Releases are tagged `vX.Y.Z`" when no tags existed. `v0.3.0`, `v0.4.0` and `v0.5.0` are now tagged.
+
 ## v0.4.0 — 2026-08-31
 
 Plugin capability: the workbook builder can now recognise a visualization gap, decide

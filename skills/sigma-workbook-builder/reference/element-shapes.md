@@ -10,8 +10,9 @@
 > **For shapes, use these instead, in this order:**
 > 1. The installed **`sigma-workbooks-cli`** skill — the current source of truth for
 >    element/source/control/layout/formula shapes, and CLI-native.
-> 2. **`../examples/exemplar-spec.json`** — a complete production-shaped workbook, and a
->    real GET-back, so every shape in it is known to work.
+> 2. **`../examples/exemplar-spec.json`** — a real GET-back, so every shape in it is known
+>    to work. Read it for shapes; do not clone it wholesale as a starting point for a
+>    different report — the defaults in `production-defaults.md` are the thing to apply.
 > 3. **`production-defaults.md`** — the shapes you should be reaching for by default.
 > 4. A GET-back of one of your own workbooks: `sigma api workbooks spec get --params
 >    '{"workbookId":"<id>"}' --yaml`.

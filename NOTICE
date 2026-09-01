@@ -5,9 +5,12 @@ This product includes software derived from the Sigma Computing agent skills
 repository (https://github.com/sigmacomputing/sigma-agent-skills), licensed under
 the Apache License, Version 2.0.
 
-Derived, and modified only where noted:
+Vendored, synced by bin/sync-upstream.sh and marked with a .upstream file:
   skills/sigma-api/
+  skills/sigma-cli/
   skills/sigma-data-models/
+
+Derived from the same upstream, retained after removal there:
   skills/sigma-embed/
 
 skills/sigma-plugin-development/ and skills/sigma-plugin-patterns/ are derived from

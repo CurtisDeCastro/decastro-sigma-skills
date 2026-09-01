@@ -44,8 +44,9 @@ Codex auto-loads `AGENTS.md` from the repo root.
 | **sigma-workbook-styling** | Visual craft: the `style` object, theme tokens, repeated containers, images and icons, composition. |
 | **sigma-plugin-development** | Build a custom Sigma plugin with the `@sigmacomputing/plugin` SDK. Derived from Neil Oliver's plugin skills. |
 | **sigma-plugin-patterns** | Architectural recipes for plugins (config, state, interaction). |
-| **sigma-api** | Authenticate against the Sigma REST API. Prerequisite for the others. |
-| **sigma-data-models** | Create, retrieve, or modify a Sigma data model spec via the REST API. |
+| **sigma-api** | Authenticate against the Sigma REST API. Prerequisite for the others. *(vendored from upstream)* |
+| **sigma-cli** | Drive Sigma from the `sigma` CLI. *(vendored from upstream)* |
+| **sigma-data-models** | Create, retrieve, or modify a Sigma data model spec via the REST API. *(vendored from upstream)* |
 | **sigma-embed** | Server-side embed URLs (JWT signing) and per-customer workbook variants via version tags. |
 
 ## Examples
@@ -101,6 +102,25 @@ ELEMENT=<elementId> python3 scripts/shot.py <workbookId> tile.png <pageId>
 ```
 
 PNG export renders only the **active** tab, so scope to an element id to inspect another.
+
+## Staying current with Sigma's official skills
+
+`sigma-api`, `sigma-cli` and `sigma-data-models` are **vendored** from
+[`sigmacomputing/sigma-agent-skills`](https://github.com/sigmacomputing/sigma-agent-skills)
+and carry a `.upstream` marker naming the commit they came from. Everything else is
+original and is never touched by a sync.
+
+```bash
+bin/sync-upstream.sh            # report drift, change nothing
+bin/sync-upstream.sh --apply    # take upstream's version of the vendored skills
+```
+
+This repo began as a fork, but it is deliberately **not** maintained by merging: the README,
+CHANGELOG and four manifests have diverged on purpose, so `git merge upstream/main`
+conflicts on all of them every time. Vendoring copies only the skill directories.
+
+> The GitHub *API* for `sigmacomputing` is SAML-gated, so `gh` calls against upstream may
+> 403. Plain `git fetch` works, which is what the sync script uses.
 
 ## License
 

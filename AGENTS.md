@@ -44,8 +44,9 @@ Agents activate these automatically based on the user's request.
 - **sigma-workbook-styling** — Visual craft: the `style` object, theme tokens, repeated containers, images and icons, composition.
 - **sigma-plugin-development** — Build a custom Sigma plugin with the `@sigmacomputing/plugin` SDK (derived from Neil Oliver's plugin skills). `examples/plugins/` has eighteen worked plugins named by function.
 - **sigma-plugin-patterns** — Architectural recipes for plugins (config, state, interaction).
-- **sigma-api** — Authenticate against the Sigma REST API. Prerequisite for the others.
-- **sigma-data-models** — Create, retrieve, or modify a Sigma data model spec via the REST API.
+- **sigma-api** — Authenticate against the Sigma REST API. Prerequisite for the others. *(vendored from upstream)*
+- **sigma-cli** — Drive Sigma from the `sigma` CLI. *(vendored from upstream)*
+- **sigma-data-models** — Create, retrieve, or modify a Sigma data model spec via the REST API. *(vendored from upstream)*
 - **sigma-embed** — Server-side embed URLs (JWT signing) and per-customer workbook variants via version tags.
 
 ## Tooling

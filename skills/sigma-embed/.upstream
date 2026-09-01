@@ -1,0 +1,2 @@
+source: sigmacomputing/sigma-agent-skills (skills/sigma-embed)
+note: removed from upstream after v0.2.0; retained here deliberately
