@@ -15,7 +15,9 @@ Derived from the same upstream, retained after removal there:
 
 skills/sigma-plugin-development/ and skills/sigma-plugin-patterns/ are derived from
 Neil Oliver's Sigma plugin skills (https://github.com/neil-oliver/sigma-plugin-skills),
-with frontmatter and hosting guidance added.
+with frontmatter and hosting guidance added. Included and redistributed here with
+Neil Oliver's permission, granted 2026-09-01. The source repository does not itself
+carry a licence file.
 
 examples/plugins/ contains plugins originally authored as Sigma demo assets. They have
 been renamed to describe their function and genericised to remove company references.

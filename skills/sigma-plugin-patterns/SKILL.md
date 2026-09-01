@@ -10,6 +10,7 @@ description: >-
 
 > Derived from **Neil Oliver's** `neil-oliver/sigma-plugin-skills`
 > (`.claude/skills/sigma-plugin-patterns.md`), with frontmatter and hosting guidance added.
+> Included with Neil's permission.
 
 # Sigma Plugin Common Patterns & Flows
 

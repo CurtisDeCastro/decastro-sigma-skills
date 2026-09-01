@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.6.1 — 2026-09-01
+
+### Changed
+
+- The two plugin skills derived from Neil Oliver's `neil-oliver/sigma-plugin-skills` now record his explicit permission to redistribute (granted 2026-09-01), in `NOTICE` and in each skill. The source repository carries no licence file of its own, so the permission is noted rather than inferred.
+
 ## v0.6.0 — 2026-09-01
 
 Separates structural defaults from visual ones. The styling values in a reproduction are
