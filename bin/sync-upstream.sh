@@ -28,7 +28,9 @@ for s in "${VENDORED[@]}"; do
   if ! git cat-file -e "upstream/main:skills/$s" 2>/dev/null; then
     printf '  %-22s gone from upstream (kept locally)\n' "$s"; continue
   fi
-  if [[ -d "skills/$s" ]] && git diff --quiet HEAD "upstream/main" -- "skills/$s" 2>/dev/null; then
+  # compare content only — our own .upstream marker never exists upstream
+  if [[ -d "skills/$s" ]] && git diff --quiet HEAD "upstream/main" \
+       -- "skills/$s" ":(exclude)skills/$s/.upstream" 2>/dev/null; then
     printf '  %-22s up to date\n' "$s"; continue
   fi
   drift=1
@@ -40,7 +42,7 @@ for s in "${VENDORED[@]}"; do
     printf '  %-22s UPDATED\n' "$s"
   else
     printf '  %-22s DRIFTED — run with --apply\n' "$s"
-    git diff --stat HEAD "upstream/main" -- "skills/$s" | tail -1 | sed 's/^/      /'
+    git diff --stat HEAD "upstream/main" -- "skills/$s" ":(exclude)skills/$s/.upstream" | tail -1 | sed 's/^/      /'
   fi
 done
 
