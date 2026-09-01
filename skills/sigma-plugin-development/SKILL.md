@@ -9,6 +9,9 @@ description: >-
   Svelte, vanilla JS), not for a dashboard. Pair with sigma-plugin-patterns for recipes.
 ---
 
+> Derived from **Neil Oliver's** `neil-oliver/sigma-plugin-skills`
+> (`.claude/skills/sigma-plugin-development.md`), with frontmatter and hosting guidance added.
+
 # Sigma Plugin Development
 
 This skill provides comprehensive guidance for building Sigma Computing plugins. Sigma plugins are custom web applications embedded within Sigma workbooks that can read data, interact with workbook elements, and respond to user actions.

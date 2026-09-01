@@ -10,6 +10,13 @@ Derived, and modified only where noted:
   skills/sigma-data-models/
   skills/sigma-embed/
 
+skills/sigma-plugin-development/ and skills/sigma-plugin-patterns/ are derived from
+Neil Oliver's Sigma plugin skills (https://github.com/neil-oliver/sigma-plugin-skills),
+with frontmatter and hosting guidance added.
+
+examples/plugins/ contains plugins originally authored as Sigma demo assets. They have
+been renamed to describe their function and genericised to remove company references.
+
 All other skills, scripts, and reference material in this repository are original
 work by the author and are likewise licensed under Apache-2.0.
 

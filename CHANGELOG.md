@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.4.0 — 2026-08-31
+
+Plugin capability: the workbook builder can now recognise a visualization gap, decide
+whether it justifies a custom plugin, build one, and walk the user through deploying it.
+
+### Added
+
+- **`sigma-workbook-builder/reference/plugins.md`** — the native-element-first decision list (native → native + conditional formatting → cosmetic-only? → plugin), how to wire a `plugin` element into a spec and its two gotchas (`plugin.style` takes a 6-digit hex only; PNG export never idles for a continuously animating plugin), the localhost-by-default hosting stance, and a deployment walkthrough covering host choice, the governance question to ask first, registration, the **set-once `pluginId`** (the Plugins API has no update endpoint), and MCP servers that can automate deploys.
+- **`examples/plugins/`** — eighteen working plugins, renamed by function (`channel-sankey`, `capital-flow-chord`, `demand-clock`, `order-book-depth-ladder`, `project-gantt`, …) with a catalogue README. Serves as both a check-before-you-build library and the authoring pattern to copy.
+- Plugin step added to the builder's procedure, and honesty rules noting that a locally-served plugin renders only on the machine serving it.
+
+### Changed
+
+- **`sigma-plugin-development`** and **`sigma-plugin-patterns`** now credit Neil Oliver's `neil-oliver/sigma-plugin-skills` as their source, in the skills themselves and in `NOTICE`.
+- Plugin examples were genericised: company names, live deployment URLs, and hosting site IDs removed.
+
 ## v0.3.0 — 2026-08-31
 
 Workbooks-as-code: a production workbook builder, report replication, styling, plugin

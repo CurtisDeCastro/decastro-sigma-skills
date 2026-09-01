@@ -42,7 +42,7 @@ Agents activate these automatically based on the user's request.
 - **sigma-workbook-builder** — **Start here for workbooks.** Build production Sigma workbooks in code: production defaults (native elements over hand-built cards, theme-driven styling, live formulas instead of typed numbers, two-tier sourcing), verified element/layout/formula shapes, and the traps that pass `spec/verify` and still render wrong.
 - **report-to-workbook** — Rebuild an existing report (screenshot, PDF, HTML, or the script that emits one) as a live Sigma workbook on your own data.
 - **sigma-workbook-styling** — Visual craft: the `style` object, theme tokens, repeated containers, images and icons, composition.
-- **sigma-plugin-development** — Build a custom Sigma plugin with the `@sigmacomputing/plugin` SDK.
+- **sigma-plugin-development** — Build a custom Sigma plugin with the `@sigmacomputing/plugin` SDK (derived from Neil Oliver's plugin skills). `examples/plugins/` has eighteen worked plugins named by function.
 - **sigma-plugin-patterns** — Architectural recipes for plugins (config, state, interaction).
 - **sigma-api** — Authenticate against the Sigma REST API. Prerequisite for the others.
 - **sigma-data-models** — Create, retrieve, or modify a Sigma data model spec via the REST API.

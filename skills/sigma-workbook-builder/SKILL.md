@@ -32,6 +32,7 @@ reconcile, and a team that maintains the thing for years.
 | `reference/element-shapes.md` | verified shapes for every element kind, controls, layout XML, formulas |
 | `reference/traps.md` | what passes `spec/verify` and still renders wrong |
 | `reference/demo-vs-production.md` | which lessons to take from demo-oriented examples, and which to refuse |
+| `reference/plugins.md` | when a visualization gap justifies a custom plugin, how to wire one in, and how to get it deployed |
 | `examples/exemplar-spec.json` | a complete production-shaped workbook; verifies as a create payload |
 
 ## Procedure
@@ -44,10 +45,14 @@ reconcile, and a team that maintains the thing for years.
    reads a spine table. Swapping environments becomes one id change.
 3. **Compose with native elements.** Work down `production-defaults.md`. If you are about
    to hand-build a tile out of text elements, check what the native element already does.
-4. **Theme once, style almost never.** Set colours/fonts/spacing on the theme; use
+4. **Hit a visualization Sigma can't do natively?** Work the decision list in
+   `reference/plugins.md` — native element, then native + conditional formatting, then a
+   plugin. If a plugin is genuinely warranted, `sigma-plugin-development` builds it and
+   `examples/plugins/` has eighteen worked ones named by what they do.
+5. **Theme once, style almost never.** Set colours/fonts/spacing on the theme; use
    `p-large` / `p-small` in text bodies rather than per-element hex.
-5. **Verify by rendering.** Below.
-6. **Ship it as code.** One command rebuilds the workbook, so a change is a reviewable
+6. **Verify by rendering.** Below.
+7. **Ship it as code.** One command rebuilds the workbook, so a change is a reviewable
    diff. That is the point of building this way.
 
 ## Running it
@@ -102,4 +107,7 @@ re-run is safe. See `scripts/` for the transport helpers this uses.
 - **Don't claim an order you haven't applied** — if a subtitle says "largest first", the
   pivot needs a real `sort.by`.
 - **Say plainly when you are standing in sample or placeholder data.** Once, early.
-- **Prefer a native element to a plugin.** A plugin is code you own, host, and secure.
+- **Prefer a native element to a plugin.** A plugin is code you own, host, and secure —
+  `reference/plugins.md` has the decision list and the honest cost.
+- **A locally-served plugin renders only on your machine.** Say so when you build one;
+  don't let someone discover it from an empty tile in a shared workbook.

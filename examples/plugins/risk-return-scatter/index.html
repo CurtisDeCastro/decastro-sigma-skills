@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<!--
+  Risk / Return Position Map (bespoke Sigma plugin)
+  A PM-facing operational scatter: each dot is a position plotted by BETA (x) vs
+  YTD P&L CONTRIBUTION (y, signed $), bubble sized by |market value|, colored by
+  side (Long / Short). Quadrant guides at beta=1 (market) and contribution=0.
+
+  Bindings (configureEditorPanel var names -> spec config keys):
+    source       : the data element
+    beta         : column  -> x
+    contribution : column  -> y (signed $)
+    marketValue  : column  -> bubble size (abs)
+    side         : column  -> color (values containing "Short" render short)
+    ticker       : column  -> label / tooltip
+    sector       : column  -> tooltip (optional)
+
+  Robustness: ResizeObserver redraw (Sigma sizes the panel AFTER first paint),
+  and a synthetic fallback book so it previews standalone with nothing bound.
+-->
+<html>
+<head>
+<meta charset="utf-8"/>
+<style>
+  :root{
+    --ink:#1F2024; --muted:#6B7178; --grid:#E7E4DE; --axis:#B9BDC4;
+    --brass:#B08D4C; --brass-soft:#C9AE78;
+    --long:#2E7D64; --long-soft:#66A98F;
+    --short:#A23B2E; --short-soft:#C77A6E;
+    --panel:#FBFAF7;
+  }
+  html,body{margin:0;height:100%;background:transparent;font-family:Inter,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);}
+  #wrap{position:relative;width:100%;height:100%;box-sizing:border-box;}
+  svg{display:block;width:100%;height:100%;}
+  .axis-label{fill:var(--muted);font-size:11px;font-weight:600;letter-spacing:.02em;}
+  .tick{fill:var(--muted);font-size:10px;}
+  .qlabel{fill:var(--brass);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.85;}
+  .legend{fill:var(--ink);font-size:11px;font-weight:600;}
+  .bubble{cursor:pointer;transition:opacity .12s;}
+  #tip{position:absolute;pointer-events:none;opacity:0;transform:translate(-50%,-118%);
+       background:#1F2024;color:#fff;border-radius:8px;padding:8px 10px;font-size:11px;line-height:1.35;
+       box-shadow:0 6px 20px rgba(0,0,0,.28);white-space:nowrap;z-index:9;}
+  #tip b{color:var(--brass-soft);}
+  #tip .pnl-pos{color:#7FE0BE;} #tip .pnl-neg{color:#F3A79A;}
+  #empty{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:var(--muted);font-size:12px;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <svg id="svg" preserveAspectRatio="xMidYMid meet"></svg>
+  <div id="tip"></div>
+  <div id="empty">No position data bound.</div>
+</div>
+<script src="https://unpkg.com/@sigmacomputing/plugin"></script>
+<script>
+const SVGNS="http://www.w3.org/2000/svg";
+const $=(id)=>document.getElementById(id);
+const fmtUSD=(v)=>{const a=Math.abs(v);const s=v<0?"-":"";
+  if(a>=1e9)return s+"$"+(a/1e9).toFixed(2)+"B";
+  if(a>=1e6)return s+"$"+(a/1e6).toFixed(1)+"M";
+  if(a>=1e3)return s+"$"+(a/1e3).toFixed(0)+"K";
+  return s+"$"+a.toFixed(0);};
+
+// ---- synthetic fallback book (only used when nothing is bound) ----
+function synth(){
+  const secs=["Info Tech","Health Care","Financials","Energy","Cons. Disc.","Industrials"];
+  const tks={"Info Tech":["NVDA","MSFT","AAPL","AVGO","CRM"],"Health Care":["LLY","UNH","ISRG","ABBV","TMO"],
+    "Financials":["JPM","GS","MS","SCHW","BLK"],"Energy":["XOM","CVX","COP","SLB","EOG"],
+    "Cons. Disc.":["AMZN","TSLA","HD","MCD","NKE"],"Industrials":["CAT","GE","HON","UNP","DE"]};
+  let seed=7; const rnd=()=>{seed=(seed*1103515245+12345)&0x7fffffff;return seed/0x7fffffff;};
+  const out=[];
+  for(let i=0;i<110;i++){
+    const sec=secs[i%6]; const side=rnd()<0.66?"Long":"Short";
+    const beta=0.25+rnd()*1.9;
+    const mv=(0.8+rnd()*9)*1e7*(side==="Long"?1:-1);
+    // contribution loosely tracks beta*direction with alpha noise; some losers
+    const base=(side==="Long"?1:-1)*(beta-0.9)*rnd()*9e6;
+    const alpha=(rnd()-0.42)*1.4e7;
+    out.push({ticker:tks[sec][i%5],sector:sec,side,beta,contribution:base+alpha,mv});
+  }
+  return out;
+}
+
+let ROWS=synth(), BOUND=false;
+
+function draw(){
+  const svg=$("svg"); const wrap=$("wrap");
+  const W=wrap.clientWidth||720, H=wrap.clientHeight||420;
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+  $("empty").style.display = ROWS.length? "none":"flex";
+  if(!ROWS.length) return;
+
+  const M={t:26,r:18,b:44,l:64};
+  const iw=Math.max(40,W-M.l-M.r), ih=Math.max(40,H-M.t-M.b);
+  const betas=ROWS.map(r=>r.beta), cons=ROWS.map(r=>r.contribution), mvs=ROWS.map(r=>Math.abs(r.mv));
+  const bMax=Math.max(1.6,Math.max(...betas)*1.06), bMin=0;
+  const cAbs=Math.max(1e6,Math.max(...cons.map(Math.abs))*1.12);
+  const mvMax=Math.max(...mvs)||1;
+  const X=b=>M.l+(b-bMin)/(bMax-bMin)*iw;
+  const Y=c=>M.t+ih-(c+cAbs)/(2*cAbs)*ih;
+  const R=mv=>6+Math.sqrt(Math.abs(mv)/mvMax)*30;
+
+  const mk=(tag,attrs,parent)=>{const e=document.createElementNS(SVGNS,tag);
+    for(const k in attrs)e.setAttribute(k,attrs[k]); (parent||svg).appendChild(e); return e;};
+
+  // grid + axes
+  const y0=Y(0), x1=X(1);
+  // x gridlines (beta 0.5 steps)
+  for(let b=0.5;b<bMax;b+=0.5){const x=X(b);
+    mk("line",{x1:x,y1:M.t,x2:x,y2:M.t+ih,stroke:"var(--grid)","stroke-width":1});
+    mk("text",{x:x,y:M.t+ih+16,"text-anchor":"middle",class:"tick"}).textContent=b.toFixed(1);}
+  // y gridlines
+  const ysteps=4;
+  for(let i=-ysteps;i<=ysteps;i++){const c=cAbs*i/ysteps;const y=Y(c);
+    mk("line",{x1:M.l,y1:y,x2:M.l+iw,y2:y,stroke:"var(--grid)","stroke-width":1});
+    mk("text",{x:M.l-8,y:y+3,"text-anchor":"end",class:"tick"}).textContent=fmtUSD(c);}
+  // zero P&L line + beta=1 market line (emphasized)
+  mk("line",{x1:M.l,y1:y0,x2:M.l+iw,y2:y0,stroke:"var(--axis)","stroke-width":1.5});
+  mk("line",{x1:x1,y1:M.t,x2:x1,y2:M.t+ih,stroke:"var(--brass)","stroke-width":1.4,"stroke-dasharray":"5 4","opacity":.7});
+  mk("text",{x:x1+5,y:M.t+11,class:"qlabel"}).textContent="β = 1 · market";
+
+  // quadrant hints
+  mk("text",{x:M.l+iw-6,y:M.t+13,"text-anchor":"end",class:"qlabel"}).textContent="High β · winners";
+  mk("text",{x:M.l+iw-6,y:M.t+ih-7,"text-anchor":"end",class:"qlabel",opacity:.6}).textContent="High β · detractors";
+
+  // axis titles
+  mk("text",{x:M.l+iw/2,y:H-8,"text-anchor":"middle",class:"axis-label"}).textContent="Beta  (sensitivity to the market)";
+  const yt=mk("text",{x:16,y:M.t+ih/2,"text-anchor":"middle",class:"axis-label",transform:`rotate(-90 16 ${M.t+ih/2})`});
+  yt.textContent="YTD P&L contribution";
+
+  // bubbles (draw largest first so small sit on top)
+  const order=[...ROWS].sort((a,b)=>Math.abs(b.mv)-Math.abs(a.mv));
+  const tip=$("tip");
+  for(const r of order){
+    const isShort=/short/i.test(r.side||"");
+    const fill=isShort?"var(--short)":"var(--long)";
+    const stroke=isShort?"var(--short-soft)":"var(--long-soft)";
+    const c=mk("circle",{cx:X(r.beta),cy:Y(r.contribution),r:R(r.mv),
+      fill:fill,"fill-opacity":.42,stroke:stroke,"stroke-width":1.3,class:"bubble"});
+    c.addEventListener("mousemove",(ev)=>{
+      const wr=$("wrap").getBoundingClientRect();
+      tip.style.left=(ev.clientX-wr.left)+"px"; tip.style.top=(ev.clientY-wr.top)+"px";
+      const pc=r.contribution>=0?"pnl-pos":"pnl-neg";
+      tip.innerHTML=`<b>${r.ticker||"—"}</b> · ${r.side||""}`+
+        (r.sector?` · ${r.sector}`:"")+
+        `<br>β ${r.beta.toFixed(2)} · MV ${fmtUSD(Math.abs(r.mv))}`+
+        `<br>YTD P&L <span class="${pc}">${fmtUSD(r.contribution)}</span>`;
+      tip.style.opacity=1; c.setAttribute("fill-opacity",.7);
+    });
+    c.addEventListener("mouseleave",()=>{tip.style.opacity=0; c.setAttribute("fill-opacity",.42);});
+  }
+
+  // legend
+  const lg=mk("g",{});
+  const lx=M.l+6, ly=M.t+10;
+  mk("circle",{cx:lx,cy:ly,r:6,fill:"var(--long)","fill-opacity":.42,stroke:"var(--long-soft)","stroke-width":1.3},lg);
+  mk("text",{x:lx+12,y:ly+4,class:"legend"},lg).textContent="Long";
+  mk("circle",{cx:lx+64,cy:ly,r:6,fill:"var(--short)","fill-opacity":.42,stroke:"var(--short-soft)","stroke-width":1.3},lg);
+  mk("text",{x:lx+76,y:ly+4,class:"legend"},lg).textContent="Short";
+}
+
+// ResizeObserver: Sigma sizes the iframe AFTER our first paint.
+new ResizeObserver(()=>draw()).observe($("wrap"));
+window.addEventListener("resize",draw);
+draw();
+
+// ---- Sigma wiring (verified SDK surface: window.sigmaComputing.plugin.client,
+//      config.subscribe -> cfg values are BARE columnIds, subscribeToElementData) ----
+(function(){
+  var client=(window.sigmaComputing&&window.sigmaComputing.plugin&&window.sigmaComputing.plugin.client)||null;
+  var defs=[
+    {name:"source",type:"element"},
+    {name:"beta",type:"column",source:"source",allowedTypes:["number","integer"],label:"Beta (x-axis)"},
+    {name:"contribution",type:"column",source:"source",allowedTypes:["number","integer"],label:"YTD P&L contribution (y-axis)"},
+    {name:"marketValue",type:"column",source:"source",allowedTypes:["number","integer"],label:"Market value (bubble size)"},
+    {name:"side",type:"column",source:"source",label:"Side — Long / Short (color)"},
+    {name:"ticker",type:"column",source:"source",label:"Ticker (label)"},
+    {name:"sector",type:"column",source:"source",label:"Sector (tooltip)"}
+  ];
+  if(client) client.config.configureEditorPanel(defs);
+  var st={cfg:{},data:null,unsub:null};
+  function recompute(){
+    var c=st.cfg||{}, d=st.data;
+    if(d && c.beta && c.contribution && d[c.beta] && d[c.contribution]){
+      var beta=d[c.beta]||[], con=d[c.contribution]||[],
+          mv=(c.marketValue&&d[c.marketValue])||[], side=(c.side&&d[c.side])||[],
+          tk=(c.ticker&&d[c.ticker])||[], sec=(c.sector&&d[c.sector])||[];
+      var rows=[];
+      for(var i=0;i<con.length;i++){
+        rows.push({beta:Number(beta[i])||0, contribution:Number(con[i])||0,
+          mv:mv.length?(Number(mv[i])||0):1e7, side:side.length?String(side[i]):"Long",
+          ticker:tk.length?String(tk[i]):"", sector:sec.length?String(sec[i]):""});
+      }
+      if(rows.length){ ROWS=rows; BOUND=true; draw(); return; }
+    }
+    if(!BOUND){ ROWS=synth(); draw(); }
+  }
+  if(client){
+    client.config.subscribe(function(cfg){ st.cfg=cfg||{};
+      if(st.unsub){ st.unsub(); st.unsub=null; }
+      if(cfg&&cfg.source){ st.unsub=client.elements.subscribeToElementData(cfg.source,function(dd){ st.data=dd; recompute(); }); }
+      recompute();
+    });
+  } else { recompute(); }
+})();
+</script>
+</body>
+</html>

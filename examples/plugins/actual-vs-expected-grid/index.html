@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>A/E Mortality Experience Grid — the reinsurer Sigma Plugin</title>
+<script src="https://unpkg.com/@sigmacomputing/plugin"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:-apple-system,BlinkMacSystemFont,Inter,"Segoe UI",Roboto,Arial,sans-serif;background:#11161C;color:#E6EBF2;overflow:hidden}
+  #wrap{height:100%;width:100%;display:flex;flex-direction:column;padding:14px 16px 10px;gap:9px}
+  #top{display:flex;justify-content:space-between;align-items:baseline;flex:0 0 auto;gap:12px}
+  #ttl{font-size:12px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#FF5A4D}
+  #meta{font-size:11px;color:#8C97A6;white-space:nowrap}
+  #meta b{color:#E6EBF2;font-weight:700}
+  #grid{flex:1;display:grid;gap:4px;min-height:0}
+  .rlbl{font-size:10px;font-weight:600;color:#8C97A6;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;letter-spacing:.02em}
+  .clbl{font-size:10px;font-weight:600;color:#8C97A6;display:flex;align-items:center;justify-content:center;letter-spacing:.02em}
+  .corner{}
+  .cell{border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;
+        cursor:default;transition:box-shadow .08s,transform .08s;position:relative;min-height:0;overflow:hidden}
+  .cell:hover{transform:scale(1.04);box-shadow:0 0 0 1.6px #FFFFFF;z-index:6}
+  .cell.thin{outline:1px dashed rgba(230,235,242,.28);outline-offset:-2px}
+  .cell.worst{box-shadow:0 0 0 2px #FFD9D5}
+  #foot{flex:0 0 auto;display:flex;align-items:center;gap:10px;font-size:10px;color:#8C97A6}
+  #bar{height:9px;flex:1;border-radius:5px;background:linear-gradient(90deg,#0E6B57,#2E9B7A,#5D6B7A,#C4453B,#D10000);max-width:340px}
+  #cred{display:flex;align-items:center;gap:5px;margin-left:auto}
+  .swatch{width:13px;height:9px;border-radius:2px;background:#C4453B}
+  .swatch.lo{opacity:.28;outline:1px dashed rgba(230,235,242,.35);outline-offset:-1px}
+  #tip{position:fixed;pointer-events:none;background:#0A0E13;border:1px solid #39424E;border-radius:8px;padding:9px 11px;
+       font-size:11px;color:#E6EBF2;opacity:0;transition:opacity .1s;z-index:10;white-space:nowrap;box-shadow:0 10px 30px rgba(0,0,0,.55);line-height:1.55}
+  #tip b{color:#FF7A6E}
+  #tip .k{color:#8C97A6;display:inline-block;min-width:82px}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="top">
+    <div id="ttl">A/E mortality — duration &times; issue age</div>
+    <div id="meta">block A/E <b id="blk">&mdash;</b> &middot; exposure <b id="exp">&mdash;</b> &middot; worst cell <b id="wst">&mdash;</b></div>
+  </div>
+  <div id="grid"></div>
+  <div id="foot">
+    <span>favourable 75%</span><div id="bar"></div><span>adverse 140%</span>
+    <div id="cred"><span class="swatch"></span><span>credible</span><span class="swatch lo"></span><span>low exposure</span></div>
+  </div>
+</div>
+<div id="tip"></div>
+<script>
+(function(){
+  var client=(window.sigmaComputing&&window.sigmaComputing.plugin&&window.sigmaComputing.plugin.client)||null;
+  var defs=[
+    {name:'source',type:'element'},
+    {name:'duration',type:'column',source:'source',label:'Duration band (columns)'},
+    {name:'ageband',type:'column',source:'source',label:'Issue-age band (rows)'},
+    {name:'actual',type:'column',source:'source',allowedTypes:['number','integer'],label:'Actual claims'},
+    {name:'expected',type:'column',source:'source',allowedTypes:['number','integer'],label:'Expected claims'},
+    {name:'exposure',type:'column',source:'source',allowedTypes:['number','integer'],label:'Exposure (life-years)'}
+  ];
+  if(client) client.config.configureEditorPanel(defs);
+
+  // ---- colour: diverging around A/E = 1.00. Below expected = teal, above = the reinsurer red.
+  function lerp(a,b,t){return a+(b-a)*t;}
+  function hx(c){return ('0'+Math.round(c).toString(16)).slice(-2);}
+  var STOPS=[[14,107,87],[46,155,122],[93,107,122],[196,69,59],[209,0,0]]; // .75 .90 1.00 1.20 1.40
+  var ANCH=[0.75,0.90,1.00,1.20,1.40];
+  function heat(ae){
+    if(ae<=ANCH[0]) return rgb(STOPS[0]);
+    if(ae>=ANCH[4]) return rgb(STOPS[4]);
+    for(var i=0;i<ANCH.length-1;i++){
+      if(ae<=ANCH[i+1]){
+        var t=(ae-ANCH[i])/(ANCH[i+1]-ANCH[i]);
+        return '#'+hx(lerp(STOPS[i][0],STOPS[i+1][0],t))+hx(lerp(STOPS[i][1],STOPS[i+1][1],t))+hx(lerp(STOPS[i][2],STOPS[i+1][2],t));
+      }
+    }
+    return rgb(STOPS[2]);
+  }
+  function rgb(s){return '#'+hx(s[0])+hx(s[1])+hx(s[2]);}
+  function fmtN(v){ v=Number(v)||0; if(v>=1e6) return (v/1e6).toFixed(1)+'M'; if(v>=1e3) return (v/1e3).toFixed(0)+'k'; return String(Math.round(v)); }
+  function fmtAE(v){ return (Number(v)*100).toFixed(0)+'%'; }
+
+  var tip=document.getElementById('tip');
+  function draw(model){
+    var rows=model.rows, cols=model.cols, cells=model.cells;
+    var grid=document.getElementById('grid'); grid.innerHTML='';
+    grid.style.gridTemplateColumns='74px repeat('+cols.length+',1fr)';
+    grid.style.gridTemplateRows='repeat('+rows.length+',1fr) 16px';
+
+    // credibility: opacity scales with exposure relative to the most-exposed cell
+    var maxExp=0, totExp=0, totA=0, totE=0, worst=null;
+    for(var r=0;r<rows.length;r++) for(var c=0;c<cols.length;c++){
+      var k=cells[r][c]; if(!k) continue;
+      if(k.exp>maxExp) maxExp=k.exp;
+      totExp+=k.exp; totE+=k.exp; totA+=k.exp*k.ae;
+      if(k.exp>0 && (!worst||k.ae>worst.ae)) worst={ae:k.ae,r:r,c:c};
+    }
+    maxExp=maxExp||1;
+
+    for(var r=0;r<rows.length;r++){
+      var lab=document.createElement('div'); lab.className='rlbl'; lab.textContent=rows[r]; grid.appendChild(lab);
+      for(var c=0;c<cols.length;c++){ (function(r,c){
+        var k=cells[r][c], el=document.createElement('div');
+        el.className='cell';
+        if(!k||k.exp<=0){ el.style.background='#1B222B'; el.style.color='#4B5563'; el.textContent='·'; grid.appendChild(el); return; }
+        var cred=Math.min(1,k.exp/maxExp);
+        var op=0.30+0.70*Math.sqrt(cred);        // sqrt so mid-exposure cells stay legible
+        if(cred<0.18) el.className+=' thin';      // explicitly flag non-credible cells
+        if(worst&&worst.r===r&&worst.c===c) el.className+=' worst';
+        el.style.background=heat(k.ae);
+        el.style.opacity=op.toFixed(3);
+        el.style.color=(k.ae>1.12||k.ae<0.86)?'#FFFFFF':'#EAF0F7';
+        el.textContent=fmtAE(k.ae);
+        el.addEventListener('mousemove',function(e){
+          tip.style.opacity=1;
+          tip.style.left=Math.min(e.clientX+14,window.innerWidth-210)+'px';
+          tip.style.top=(e.clientY+14)+'px';
+          tip.innerHTML='<b>'+rows[r]+' &middot; '+cols[c]+'</b><br>'+
+            '<span class="k">A/E mortality</span>'+fmtAE(k.ae)+'<br>'+
+            '<span class="k">Exposure</span>'+fmtN(k.exp)+' life-yrs<br>'+
+            '<span class="k">Actual claims</span>'+fmtN(k.act)+'<br>'+
+            '<span class="k">Expected</span>'+fmtN(k.expc)+'<br>'+
+            '<span class="k">Credibility</span>'+(cred<0.18?'low — treat as directional':(cred<0.5?'partial':'full'));
+        });
+        el.addEventListener('mouseleave',function(){ tip.style.opacity=0; });
+        grid.appendChild(el);
+      })(r,c); }
+    }
+    var corner=document.createElement('div'); corner.className='corner'; grid.appendChild(corner);
+    for(var c=0;c<cols.length;c++){ var cl=document.createElement('div'); cl.className='clbl'; cl.textContent=cols[c]; grid.appendChild(cl); }
+
+    document.getElementById('blk').textContent = totE>0 ? fmtAE(totA/totE) : '—';
+    document.getElementById('exp').textContent = fmtN(totExp)+' life-yrs';
+    document.getElementById('wst').textContent = worst ? (rows[worst.r]+' D'+String(cols[worst.c]).replace(/[^0-9+\-]/g,'')+' '+fmtAE(worst.ae)) : '—';
+  }
+
+  // ---- synthetic fallback so the plugin previews standalone ----
+  var S_ROWS=['18-34','35-44','45-54','55-64','65+'];
+  var S_COLS=['Dur 1','Dur 2','Dur 3-5','Dur 6-10','Dur 11+'];
+  function synth(){
+    var cells=[];
+    for(var r=0;r<S_ROWS.length;r++){ cells[r]=[];
+      for(var c=0;c<S_COLS.length;c++){
+        // select-and-ultimate shape: A/E climbs with duration (wear-off) and with issue age
+        var ae=0.80+0.055*c+0.075*r+0.02*Math.sin(r*2.1+c*1.7);
+        var exp=Math.round(210000*Math.exp(-0.30*c)*(r===0?0.55:(r===4?0.42:1))*(1+0.10*Math.cos(c*1.3+r)));
+        cells[r][c]={ae:ae,exp:exp,act:Math.round(exp*ae*0.0042),expc:Math.round(exp*0.0042)};
+      }
+    }
+    return {rows:S_ROWS,cols:S_COLS,cells:cells};
+  }
+
+  // ---- build a model from Sigma element data ----
+  // The feed may carry MORE than one row per (age, duration) cell — it is grouped by
+  // geography and business line too, so the page filters can reshape it. Accumulate
+  // actual/expected per cell and take the ratio at the end; never average pre-computed
+  // A/E ratios, which would weight a 200-life cell the same as a 200,000-life one.
+  function buildModel(d,cfg){
+    var dur=d[cfg.duration]||[], age=d[cfg.ageband]||[],
+        act=d[cfg.actual]||[], exp=d[cfg.expected]||[], ex=d[cfg.exposure]||[];
+    if(!act.length) return null;
+    var rows=[],cols=[],seenR={},seenC={};
+    for(var i=0;i<act.length;i++){
+      var a=String(age[i]), u=String(dur[i]);
+      if(!(a in seenR)){seenR[a]=1;rows.push(a);}
+      if(!(u in seenC)){seenC[u]=1;cols.push(u);}
+    }
+    rows.sort(bandSort); cols.sort(durSort);
+    var ri={},ci={},r,c;
+    for(r=0;r<rows.length;r++) ri[rows[r]]=r;
+    for(c=0;c<cols.length;c++) ci[cols[c]]=c;
+    var cells=[]; for(r=0;r<rows.length;r++){cells[r]=[]; for(c=0;c<cols.length;c++) cells[r][c]=null;}
+    for(var j=0;j<act.length;j++){
+      var rr=ri[String(age[j])], cc=ci[String(dur[j])];
+      if(rr===undefined||cc===undefined) continue;
+      var k=cells[rr][cc] || (cells[rr][cc]={ae:0,exp:0,act:0,expc:0});
+      k.act += Number(act[j])||0;
+      k.expc += Number(exp[j])||0;
+      k.exp += Number(ex[j])||0;
+    }
+    for(r=0;r<rows.length;r++) for(c=0;c<cols.length;c++){
+      var q=cells[r][c]; if(!q) continue;
+      q.ae = q.expc>0 ? q.act/q.expc : 0;
+      if(q.expc<=0) cells[r][c]=null;
+    }
+    return {rows:rows,cols:cols,cells:cells};
+  }
+  // 'Dur 1' < 'Dur 2' < 'Dur 3-5' < 'Dur 6-10' < 'Dur 11+' — leading number, not lexical
+  function durSort(a,b){ return bandSort(a,b); }
+  // sort '18-34' / 'Dur 3-5' style band labels by their leading number
+  function bandSort(a,b){
+    var na=parseFloat(String(a).replace(/[^0-9.]/g,'')), nb=parseFloat(String(b).replace(/[^0-9.]/g,''));
+    if(isNaN(na)&&isNaN(nb)) return String(a).localeCompare(String(b));
+    if(isNaN(na)) return 1; if(isNaN(nb)) return -1;
+    return na-nb;
+  }
+
+  var st={cfg:{},data:null,unsub:null,model:null};
+  function recompute(){
+    var c=st.cfg||{},d=st.data,m=null;
+    if(d&&c.actual&&c.expected&&c.ageband&&c.duration) m=buildModel(d,c);
+    st.model=m||synth();
+    draw(st.model);
+  }
+  // Sigma sizes the iframe AFTER first paint — redraw on every resize or the grid
+  // measures at a stale size and cells clip / wrap.
+  var ro=new ResizeObserver(function(){ if(st.model) draw(st.model); });
+  ro.observe(document.getElementById('wrap'));
+
+  if(client){
+    client.config.subscribe(function(cfg){
+      st.cfg=cfg||{};
+      if(st.unsub){st.unsub();st.unsub=null;}
+      if(cfg&&cfg.source){ st.unsub=client.elements.subscribeToElementData(cfg.source,function(dd){ st.data=dd; recompute(); }); }
+      recompute();
+    });
+  } else { recompute(); }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Care-Gap Closure Funnel — b.well Sigma Plugin</title>
+<script src="https://unpkg.com/@sigmacomputing/plugin"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:-apple-system,BlinkMacSystemFont,Inter,"Segoe UI",Roboto,Arial,sans-serif;background:transparent;color:#191D4D;overflow:hidden}
+  #wrap{height:100%;width:100%;display:flex;flex-direction:column;padding:14px 18px 10px;gap:6px}
+  #top{display:flex;justify-content:space-between;align-items:baseline;flex:0 0 auto;gap:12px}
+  #ttl{font-size:12px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#2E3586}
+  #meta{font-size:11px;color:#767B9E;white-space:nowrap}
+  #meta b{color:#191D4D;font-weight:700}
+  #funnel{flex:1;display:flex;flex-direction:column;min-height:0;justify-content:center;gap:0}
+  .row{display:flex;align-items:center;gap:10px;flex:1 1 0;min-height:0}
+  .sname{flex:0 0 152px;font-size:11.5px;font-weight:600;color:#3A3F6E;text-align:right;line-height:1.15}
+  .bandwrap{flex:1 1 auto;display:flex;justify-content:center;min-width:0;height:100%;align-items:center}
+  .band{height:76%;min-height:14px;display:flex;border-radius:5px;overflow:hidden;box-shadow:0 1px 3px rgba(25,29,77,.16)}
+  .seg{height:100%;min-width:1px;transition:filter .1s;cursor:default}
+  .seg:hover{filter:brightness(1.18) saturate(1.15)}
+  .snums{flex:0 0 128px;font-size:11.5px;line-height:1.2;color:#191D4D}
+  .snums b{font-weight:800;font-size:13px}
+  .snums span{color:#767B9E;font-size:10.5px}
+  .droprow{flex:0 0 auto;display:flex;align-items:center;gap:10px;height:15px}
+  .dropspace{flex:0 0 152px}
+  .dropmid{flex:1 1 auto;display:flex;justify-content:center;min-width:0}
+  .drop{font-size:10px;font-weight:700;color:#8A4B6E;background:#F6EAF1;border:1px solid #E7D2DF;border-radius:9px;padding:1px 7px;white-space:nowrap}
+  .drop.good{color:#3B7A3B;background:#EDF7E7;border-color:#D3E9C6}
+  .dropend{flex:0 0 128px}
+  #legend{flex:0 0 auto;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;font-size:10.5px;color:#5A5F87;padding-top:4px}
+  .lg{display:flex;align-items:center;gap:5px;white-space:nowrap}
+  .sw{width:9px;height:9px;border-radius:2px;flex:0 0 auto}
+  #tip{position:fixed;pointer-events:none;background:#191D4D;border:1px solid #3A3F6E;border-radius:8px;padding:8px 10px;font-size:11px;color:#EEF0FA;opacity:0;transition:opacity .1s;z-index:10;white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+  #tip b{color:#6CC63F}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="top">
+    <div id="ttl">Care-gap closure funnel</div>
+    <div id="meta">outreach <b id="m-sent">—</b> · closed <b id="m-closed">—</b> · closure rate <b id="m-rate">—</b></div>
+  </div>
+  <div id="funnel"></div>
+  <div id="legend"></div>
+</div>
+<div id="tip"></div>
+<script>
+(function(){
+  var client=(window.sigmaComputing&&window.sigmaComputing.plugin&&window.sigmaComputing.plugin.client)||null;
+  var defs=[
+    {name:'source',type:'element'},
+    {name:'stage',type:'column',source:'source',label:'Funnel stage'},
+    {name:'stageOrder',type:'column',source:'source',allowedTypes:['number','integer'],label:'Stage order (1..N)'},
+    {name:'campaign',type:'column',source:'source',label:'Outreach campaign'},
+    {name:'members',type:'column',source:'source',allowedTypes:['number','integer'],label:'Members'}
+  ];
+  if(client) client.config.configureEditorPanel(defs);
+
+  // b.well palette — navy primary, brand green accent
+  var PAL=['#2E3586','#6CC63F','#6C60ED','#191D4D','#2E9B8F','#A3D977','#8A93D6','#4F7A2E'];
+  var tip=document.getElementById('tip');
+
+  function fmt(v){ v=Math.round(v);
+    if(v>=1e6) return (v/1e6).toFixed(2).replace(/\.?0+$/,'')+'M';
+    if(v>=1e3) return (v/1e3).toFixed(v>=1e5?0:1).replace(/\.0$/,'')+'K';
+    return String(v); }
+  function pct(v){ return (v*100).toFixed(1)+'%'; }
+
+  // model: {stages:[{name,order,total,segs:[{campaign,value,color}]}], campaigns:[...]}
+  function render(model){
+    var f=document.getElementById('funnel'); f.innerHTML='';
+    var lg=document.getElementById('legend'); lg.innerHTML='';
+    if(!model.stages.length) return;
+    var top=model.stages[0].total||1;
+
+    model.stages.forEach(function(st,si){
+      if(si>0){
+        var prev=model.stages[si-1].total||1;
+        var chg=st.total/prev-1;
+        var dr=document.createElement('div'); dr.className='droprow';
+        dr.innerHTML='<div class="dropspace"></div><div class="dropmid"><span class="drop'+(chg>=0?' good':'')+'">'+
+          (chg>=0?'▲ +':'▼ ')+pct(Math.abs(chg))+' vs '+model.stages[si-1].name.toLowerCase()+'</span></div><div class="dropend"></div>';
+        f.appendChild(dr);
+      }
+      var row=document.createElement('div'); row.className='row';
+      var nm=document.createElement('div'); nm.className='sname'; nm.textContent=st.name; row.appendChild(nm);
+
+      var bw=document.createElement('div'); bw.className='bandwrap';
+      var band=document.createElement('div'); band.className='band';
+      var widthPct=Math.max(4,(st.total/top)*100);
+      band.style.width=widthPct+'%';
+      st.segs.forEach(function(sg){
+        var d=document.createElement('div'); d.className='seg';
+        d.style.flex=(sg.value||0)+' 0 0'; d.style.background=sg.color;
+        d.addEventListener('mousemove',function(e){
+          tip.style.opacity=1; tip.style.left=Math.min(e.clientX+14,window.innerWidth-230)+'px'; tip.style.top=(e.clientY+14)+'px';
+          tip.innerHTML='<b>'+sg.campaign+'</b><br>'+st.name+': '+fmt(sg.value)+' members<br>'+
+            pct(st.total?sg.value/st.total:0)+' of this stage';
+        });
+        d.addEventListener('mouseleave',function(){ tip.style.opacity=0; });
+        band.appendChild(d);
+      });
+      bw.appendChild(band); row.appendChild(bw);
+
+      var nums=document.createElement('div'); nums.className='snums';
+      nums.innerHTML='<b>'+fmt(st.total)+'</b><br><span>'+pct(st.total/top)+' of outreach</span>';
+      row.appendChild(nums);
+      f.appendChild(row);
+    });
+
+    model.campaigns.forEach(function(c,i){
+      var el=document.createElement('div'); el.className='lg';
+      el.innerHTML='<span class="sw" style="background:'+PAL[i%PAL.length]+'"></span>'+c;
+      lg.appendChild(el);
+    });
+
+    var first=model.stages[0], last=model.stages[model.stages.length-1];
+    document.getElementById('m-sent').textContent=fmt(first.total);
+    document.getElementById('m-closed').textContent=fmt(last.total);
+    document.getElementById('m-rate').textContent=pct(first.total?last.total/first.total:0);
+  }
+
+  function build(rows){
+    // rows: [{campaign, stage, order, value}]
+    var campaigns=[], byStage={};
+    rows.forEach(function(r){
+      if(campaigns.indexOf(r.campaign)<0) campaigns.push(r.campaign);
+      var k=r.order;
+      if(!byStage[k]) byStage[k]={name:r.stage,order:r.order,total:0,map:{}};
+      byStage[k].total+=r.value;
+      byStage[k].map[r.campaign]=(byStage[k].map[r.campaign]||0)+r.value;
+    });
+    campaigns.sort();
+    var stages=Object.keys(byStage).map(function(k){return byStage[k];})
+      .sort(function(a,b){return a.order-b.order;});
+    stages.forEach(function(s){
+      s.segs=campaigns.map(function(c,i){return {campaign:c,value:s.map[c]||0,color:PAL[i%PAL.length]};});
+    });
+    return {stages:stages,campaigns:campaigns};
+  }
+
+  var STAGES=[['Outreach sent',1,1.00],['Message opened',2,0.62],['Appointment scheduled',3,0.34],
+              ['Visit completed',4,0.24],['Care gap closed',5,0.19]];
+  var CAMPS=[['Annual Wellness Visit',505000,-0.18],['Cancer Screening',318000,0.05],
+             ['Chronic Condition',236000,0.22],['Medication Adherence',211000,-0.06],
+             ['Immunization',172000,0.12],['Behavioral Health',115000,0.30]];
+  function synth(){
+    var rows=[];
+    CAMPS.forEach(function(c){ STAGES.forEach(function(s){
+      rows.push({campaign:c[0],stage:s[0],order:s[1],value:Math.round(c[1]*Math.pow(s[2],1+c[2]))});
+    });});
+    return build(rows);
+  }
+
+  var st={cfg:{},data:null,unsub:null,model:null};
+  function recompute(){
+    var c=st.cfg||{}, d=st.data, rows=[];
+    if(d&&c.members&&c.stage&&d[c.members]){
+      var stg=d[c.stage]||[], ord=d[c.stageOrder]||[], cmp=d[c.campaign]||[], val=d[c.members]||[];
+      for(var i=0;i<val.length;i++){
+        var v=Number(val[i]); if(!isFinite(v)) continue;
+        rows.push({campaign:String(cmp[i]==null?'All':cmp[i]),stage:String(stg[i]),
+                   order:Number(ord[i]!=null?ord[i]:i),value:v});
+      }
+    }
+    st.model = rows.length ? build(rows) : synth();
+    render(st.model);
+  }
+
+  // Sigma sizes the iframe AFTER first paint — redraw on every resize, or bands
+  // measure at a stale width and the funnel renders clipped.
+  if(window.ResizeObserver){
+    new ResizeObserver(function(){ if(st.model) render(st.model); }).observe(document.body);
+  } else { window.addEventListener('resize',function(){ if(st.model) render(st.model); }); }
+
+  if(client){
+    client.config.subscribe(function(cfg){
+      st.cfg=cfg||{};
+      if(st.unsub){ st.unsub(); st.unsub=null; }
+      if(cfg&&cfg.source){ st.unsub=client.elements.subscribeToElementData(cfg.source,function(dd){ st.data=dd; recompute(); }); }
+      recompute();
+    });
+  } else { recompute(); }
+})();
+</script>
+</body>
+</html>

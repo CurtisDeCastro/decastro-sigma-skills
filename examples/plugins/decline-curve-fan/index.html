@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Type-Curve Decline Fan — the operator Sigma Plugin</title>
+<script src="https://unpkg.com/@sigmacomputing/plugin"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+       background:#061529;color:#E6EDF7;overflow:hidden}
+  #wrap{height:100%;width:100%;display:flex;flex-direction:column;padding:11px 13px 9px}
+  #top{display:flex;align-items:baseline;gap:22px;flex:none;padding-bottom:7px;
+       border-bottom:1px solid rgba(160,190,225,.16)}
+  #ttl{font-size:14px;font-weight:800;letter-spacing:.02em;white-space:nowrap}
+  #ttl span{color:#7C93AE;font-weight:600}
+  .stat{display:flex;flex-direction:column;gap:1px}
+  .stat .k{font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#7C93AE;white-space:nowrap}
+  .stat .v{font-size:14px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
+  #stage{flex:1;min-height:0;position:relative;margin-top:5px}
+  svg{width:100%;height:100%;display:block}
+  #bottom{flex:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:7px;
+          border-top:1px solid rgba(160,190,225,.16)}
+  #legend{display:flex;flex-wrap:wrap;gap:6px}
+  .lch{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;color:#C4D6EA;
+       background:rgba(0,114,206,.12);border:1px solid rgba(0,114,206,.34);border-radius:999px;padding:2px 8px;white-space:nowrap}
+  .ldot{width:7px;height:7px;border-radius:50%;flex:none}
+  #note{font-size:10px;color:#7C93AE;font-weight:600;white-space:nowrap}
+  #tip{position:fixed;pointer-events:none;opacity:0;transition:opacity .08s;background:#0B2340;
+       border:1px solid rgba(0,114,206,.5);border-radius:7px;padding:7px 9px;font-size:11px;
+       line-height:1.45;box-shadow:0 8px 22px rgba(0,0,0,.5);z-index:9;white-space:nowrap}
+  #tip b{color:#FFFFFF}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="top">
+    <div id="ttl">Type-curve decline fan <span>· gross wellhead rate by months online</span></div>
+    <div class="stat"><div class="k">Assets</div><div class="v" id="sAsset">—</div></div>
+    <div class="stat"><div class="k">Peak IP (P50)</div><div class="v" id="sIP" style="color:#00A3FF">—</div></div>
+    <div class="stat"><div class="k">Yr-1 base decline</div><div class="v" id="sDec" style="color:#F0A030">—</div></div>
+    <div class="stat"><div class="k">Actuals vs P50</div><div class="v" id="sVar">—</div></div>
+  </div>
+  <div id="stage"><svg id="svg"></svg></div>
+  <div id="bottom">
+    <div id="legend"></div>
+    <div id="note">Shaded fan = P10–P90 type-curve band · solid = P50 type curve · dotted = actual producing-well average</div>
+  </div>
+</div>
+<div id="tip"></div>
+<script>
+(function(){
+  var client=(window.sigmaComputing&&window.sigmaComputing.plugin&&window.sigmaComputing.plugin.client)||null;
+  var NS='http://www.w3.org/2000/svg', tip=document.getElementById('tip');
+  var GRID='rgba(160,190,225,.13)', AXIS='#7C93AE';
+  // the operator-family palette: the operator red, Mobil blue, deep navy, warm amber
+  var AC=['#0072CE','#E31B23','#5AC8E8','#F0A030','#8FB8D8','#A46BE0'];
+
+  var defs=[
+    {name:'source',type:'element'},
+    {name:'asset', type:'column',source:'source',allowedTypes:['text'],label:'Asset / basin'},
+    {name:'month', type:'column',source:'source',allowedTypes:['number','integer'],label:'Months online'},
+    {name:'p90',   type:'column',source:'source',allowedTypes:['number','integer'],label:'P90 rate (boe/d)'},
+    {name:'p50',   type:'column',source:'source',allowedTypes:['number','integer'],label:'P50 type curve (boe/d)'},
+    {name:'p10',   type:'column',source:'source',allowedTypes:['number','integer'],label:'P10 rate (boe/d)'},
+    {name:'actual',type:'column',source:'source',allowedTypes:['number','integer'],label:'Actual well average (boe/d)'},
+    {name:'title', type:'text',label:'Panel label',defaultValue:'Gross wellhead rate'}
+  ];
+  if(client) client.config.configureEditorPanel(defs);
+
+  function el(t,a){ var e=document.createElementNS(NS,t); for(var k in a)e.setAttribute(k,a[k]); return e; }
+  function txt(a,s){ var t=el('text',a); t.textContent=s; return t; }
+  function kb(n){
+    if(n==null||isNaN(n)) return '—';
+    var a=Math.abs(n);
+    if(a>=1000) return (n/1000).toFixed(1)+'K';
+    return Math.round(n).toLocaleString('en-US');
+  }
+  function showTip(e,html){ tip.innerHTML=html; tip.style.opacity=1;
+    tip.style.left=Math.min(e.clientX+13,window.innerWidth-tip.offsetWidth-8)+'px';
+    tip.style.top=Math.max(6,e.clientY-tip.offsetHeight-10)+'px'; }
+  function hideTip(){ tip.style.opacity=0; }
+
+  function panel(svg,a,x0,y0,w,h,color){
+    var padL=42,padR=8,padT=20,padB=20;
+    var iw=w-padL-padR, ih=h-padT-padB;
+    if(iw<40||ih<30) return;
+    var g=el('g',{transform:'translate('+x0+','+y0+')'});
+    var pts=a.pts;
+    var mx=0; pts.forEach(function(p){ mx=Math.max(mx,p.p10||0,p.p50||0,p.actual||0); });
+    if(!(mx>0)) mx=1;
+    var mm=0; pts.forEach(function(p){ mm=Math.max(mm,p.m); }); if(!(mm>0)) mm=1;
+    var X=function(m){ return padL+iw*(m/mm); };
+    var Y=function(v){ return padT+ih-ih*(v/(mx*1.08)); };
+
+    // panel frame + gridlines
+    g.appendChild(el('rect',{x:padL,y:padT,width:iw,height:ih,fill:'rgba(255,255,255,.022)',
+      stroke:GRID,'stroke-width':1,rx:4}));
+    for(var i=1;i<4;i++){
+      var gy=padT+ih*i/4;
+      g.appendChild(el('line',{x1:padL,y1:gy,x2:padL+iw,y2:gy,stroke:GRID,'stroke-width':1}));
+      g.appendChild(txt({x:padL-6,y:gy+3,'text-anchor':'end','font-size':9,fill:AXIS,'font-weight':600},
+        kb(mx*1.08*(1-i/4))));
+    }
+    g.appendChild(txt({x:padL-6,y:padT+ih+3,'text-anchor':'end','font-size':9,fill:AXIS,'font-weight':600},'0'));
+
+    // P10–P90 fan
+    var up='',dn='';
+    pts.forEach(function(p,i){ up+=(i?'L':'M')+X(p.m).toFixed(1)+','+Y(p.p10).toFixed(1); });
+    for(var j=pts.length-1;j>=0;j--){ dn+='L'+X(pts[j].m).toFixed(1)+','+Y(pts[j].p90).toFixed(1); }
+    g.appendChild(el('path',{d:up+dn+'Z',fill:color,'fill-opacity':.17,stroke:'none'}));
+    g.appendChild(el('path',{d:up,fill:'none',stroke:color,'stroke-opacity':.42,'stroke-width':1,
+      'stroke-dasharray':'3 3'}));
+
+    // P50 type curve
+    var d50=''; pts.forEach(function(p,i){ d50+=(i?'L':'M')+X(p.m).toFixed(1)+','+Y(p.p50).toFixed(1); });
+    g.appendChild(el('path',{d:d50,fill:'none',stroke:color,'stroke-width':2.2,'stroke-linejoin':'round'}));
+
+    // actuals
+    var hasA=pts.some(function(p){ return p.actual!=null && !isNaN(p.actual); });
+    if(hasA){
+      var da=''; pts.forEach(function(p,i){ da+=(i?'L':'M')+X(p.m).toFixed(1)+','+Y(p.actual).toFixed(1); });
+      g.appendChild(el('path',{d:da,fill:'none',stroke:'#FFFFFF','stroke-width':1.7,
+        'stroke-dasharray':'2 3','stroke-linejoin':'round'}));
+      pts.forEach(function(p,i){
+        if(i%Math.max(1,Math.round(pts.length/9))) return;
+        var c=el('circle',{cx:X(p.m),cy:Y(p.actual),r:2.6,fill:'#FFFFFF'});
+        g.appendChild(c);
+      });
+    }
+
+    // hover band
+    var hit=el('rect',{x:padL,y:padT,width:iw,height:ih,fill:'transparent'});
+    hit.addEventListener('mousemove',function(e){
+      var bb=hit.getBoundingClientRect();
+      var m=Math.round(mm*(e.clientX-bb.left)/Math.max(1,bb.width));
+      var p=pts.reduce(function(b,q){ return Math.abs(q.m-m)<Math.abs(b.m-m)?q:b; },pts[0]);
+      showTip(e,'<b>'+a.name+'</b> · month '+p.m+'<br/>P10 '+kb(p.p10)+' · <b>P50 '+kb(p.p50)+'</b> · P90 '+kb(p.p90)+
+        (p.actual!=null&&!isNaN(p.actual)?'<br/>actual '+kb(p.actual)+' boe/d ('+
+          (p.p50?((p.actual/p.p50-1)*100).toFixed(0):'—')+'% vs P50)':''));
+    });
+    hit.addEventListener('mouseleave',hideTip);
+    g.appendChild(hit);
+
+    // x labels + title
+    [0,Math.round(mm/2),mm].forEach(function(m){
+      g.appendChild(txt({x:X(m),y:padT+ih+13,'text-anchor':'middle','font-size':9,fill:AXIS,'font-weight':600},'m'+m));
+    });
+    g.appendChild(txt({x:padL,y:13,'font-size':11,'font-weight':800,fill:'#FFFFFF'},a.name));
+    g.appendChild(txt({x:padL+iw,y:13,'text-anchor':'end','font-size':9,'font-weight':700,fill:color},
+      'IP '+kb(a.ip)+' boe/d'));
+    svg.appendChild(g);
+  }
+
+  function draw(rows,label){
+    var svg=document.getElementById('svg'); while(svg.firstChild)svg.removeChild(svg.firstChild);
+    var st=document.getElementById('stage'), W=st.clientWidth||700, H=st.clientHeight||360;
+    if(W<60||H<60||!rows.length) return;
+    document.getElementById('ttl').innerHTML=label+' <span>· gross wellhead rate by months online</span>';
+
+    var by={};
+    rows.forEach(function(r){
+      if(!by[r.asset]) by[r.asset]={name:r.asset,pts:[]};
+      by[r.asset].pts.push(r);
+    });
+    var assets=Object.keys(by).map(function(k){
+      var a=by[k];
+      a.pts.sort(function(x,y){ return x.m-y.m; });
+      a.ip=a.pts.length?Math.max.apply(null,a.pts.map(function(p){return p.p50||0;})):0;
+      return a;
+    });
+    if(!assets.length) return;
+
+    // responsive small-multiple grid
+    var n=assets.length;
+    var cols=W<420?1:(n<=2?n:(W<820?2:(n<=4?2:3)));
+    var rowsN=Math.ceil(n/cols);
+    var cw=W/cols, ch=H/rowsN;
+    assets.forEach(function(a,i){
+      panel(svg,a,(i%cols)*cw,Math.floor(i/cols)*ch,cw,ch,AC[i%AC.length]);
+    });
+
+    // header stats
+    var ip=0,dec=[],va=[],vb=[];
+    assets.forEach(function(a){
+      ip=Math.max(ip,a.ip);
+      var p0=a.pts[0],p12=a.pts.reduce(function(b,q){return Math.abs(q.m-12)<Math.abs(b.m-12)?q:b;},a.pts[0]);
+      if(p0&&p12&&p0.p50) dec.push(1-p12.p50/p0.p50);
+      a.pts.forEach(function(p){ if(p.actual!=null&&!isNaN(p.actual)&&p.p50){ va.push(p.actual); vb.push(p.p50); } });
+    });
+    document.getElementById('sAsset').textContent=n;
+    document.getElementById('sIP').textContent=kb(ip)+' boe/d';
+    document.getElementById('sDec').textContent=dec.length?
+      Math.round(100*dec.reduce(function(a,b){return a+b;},0)/dec.length)+'%':'—';
+    if(va.length){
+      var sa=va.reduce(function(a,b){return a+b;},0), sb=vb.reduce(function(a,b){return a+b;},0);
+      var pct=(sa/sb-1)*100, e=document.getElementById('sVar');
+      e.textContent=(pct>=0?'+':'')+pct.toFixed(1)+'%';
+      e.style.color=pct>=0?'#3FD6A0':'#FF8A8A';
+    } else { document.getElementById('sVar').textContent='—'; }
+
+    var lg=document.getElementById('legend'); lg.innerHTML='';
+    assets.forEach(function(a,i){
+      var d=document.createElement('div'); d.className='lch';
+      d.innerHTML='<span class="ldot" style="background:'+AC[i%AC.length]+'"></span>'+a.name; lg.appendChild(d);
+    });
+  }
+
+  // standalone preview — believable unconventional + deepwater type curves
+  function synth(){
+    var names=['Permian Basin','Guyana — Stabroek','Gulf of America','Kearl (Canada)'];
+    var ip=[1450,9800,5200,900], b=[1.1,0.7,0.9,0.4], di=[.62,.24,.36,.11];
+    var out=[];
+    names.forEach(function(nm,k){
+      for(var m=0;m<=36;m++){
+        var q=ip[k]/Math.pow(1+b[k]*di[k]*(m/12),1/b[k]);
+        out.push({asset:nm,m:m,p50:Math.round(q),p10:Math.round(q*1.34),p90:Math.round(q*0.71),
+                  actual:m<=24?Math.round(q*(1.02+0.04*Math.sin(m/3+k))):null});
+      }
+    });
+    return out;
+  }
+
+  var stt={cfg:{},data:null,unsub:null};
+  function recompute(){
+    var c=stt.cfg||{}, d=stt.data, label=(c.title||'Type-curve decline fan');
+    if(d&&c.asset&&c.month&&c.p50&&d[c.asset]){
+      var aa=d[c.asset]||[], ma=d[c.month]||[], q5=d[c.p50]||[],
+          q1=(c.p10&&d[c.p10])||[], q9=(c.p90&&d[c.p90])||[], ac=(c.actual&&d[c.actual])||[];
+      var rows=[];
+      for(var i=0;i<aa.length;i++){
+        var p50=Number(q5[i]);
+        if(isNaN(p50)) continue;
+        rows.push({asset:String(aa[i]||'—'),m:Number(ma[i])||0,p50:p50,
+          p10:isNaN(Number(q1[i]))?p50*1.3:Number(q1[i]),
+          p90:isNaN(Number(q9[i]))?p50*0.72:Number(q9[i]),
+          actual:(ac.length&&!isNaN(Number(ac[i])))?Number(ac[i]):null});
+      }
+      if(rows.length){ draw(rows,label); return; }
+    }
+    draw(synth(),label);
+  }
+
+  if(client){
+    client.config.subscribe(function(cfg){
+      stt.cfg=cfg||{};
+      if(stt.unsub){stt.unsub();stt.unsub=null;}
+      if(cfg&&cfg.source){ stt.unsub=client.elements.subscribeToElementData(cfg.source,function(d){ stt.data=d; recompute(); }); }
+      recompute();
+    });
+  } else { recompute(); }
+
+  // Sigma sizes the panel AFTER first paint — redraw on every resize, not just load.
+  if(window.ResizeObserver){ new ResizeObserver(function(){ recompute(); }).observe(document.getElementById('stage')); }
+  window.addEventListener('resize',function(){ recompute(); });
+})();
+</script>
+</body>
+</html>

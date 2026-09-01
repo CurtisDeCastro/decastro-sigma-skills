@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Prior Authorization Turnaround — the PBM Sigma Plugin</title>
+<script src="https://unpkg.com/@sigmacomputing/plugin"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:-apple-system,BlinkMacSystemFont,Inter,Segoe UI,Roboto,Arial,sans-serif;background:transparent;color:#191919;overflow:hidden}
+  #wrap{height:100%;width:100%;display:flex;flex-direction:column;padding:14px 16px;gap:10px}
+  #top{display:flex;justify-content:space-between;align-items:baseline}
+  #ttl{font-size:14px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#FF612B}
+  #avg{font-size:12px;color:#6b6f73}
+  #avg b{color:#191919;font-size:15px}
+  #grid{flex:1;display:grid;gap:4px;grid-auto-rows:1fr;align-content:stretch;min-height:0}
+  .row{display:contents}
+  .rowlabel{display:flex;align-items:center;font-size:11px;font-weight:600;color:#44484c;padding-right:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cell{border-radius:5px;position:relative;transition:transform .08s;cursor:default;min-height:20px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#191919}
+  .cell:hover{transform:scale(1.08);z-index:5;outline:2px solid #191919}
+  .cell.breach{box-shadow:0 0 0 2px #EB1700}
+  #legend{display:flex;align-items:center;gap:8px;font-size:10px;color:#6b6f73}
+  #bar{height:8px;flex:1;border-radius:4px;background:linear-gradient(90deg,#1E8E5A,#F0872E,#EB1700)}
+  #tip{position:fixed;pointer-events:none;background:#191919;border:1px solid #3a3a3a;border-radius:8px;padding:8px 10px;font-size:11px;color:#fff;opacity:0;transition:opacity .1s;z-index:10;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+  #tip b{color:#FF9A6B}
+  #colheads{display:grid;gap:4px}
+  .colhead{font-size:10px;font-weight:700;color:#6b6f73;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="top"><div id="ttl">PA Turnaround by Therapy Class</div><div id="avg">Avg <b id="avgV">—</b> hrs · <span id="cnt">0</span> queues · <span id="breach" style="color:#EB1700">0 SLA breaches</span></div></div>
+  <div id="colheads"></div>
+  <div id="grid"></div>
+  <div id="legend"><span>fast (&lt;12h)</span><div id="bar"></div><span>slow (&gt;72h)</span><span style="margin-left:8px;color:#EB1700">▨ SLA breach</span></div>
+</div>
+<div id="tip"></div>
+<script>
+(function(){
+  var client=(window.sigmaComputing&&window.sigmaComputing.plugin&&window.sigmaComputing.plugin.client)||null;
+  var defs=[
+    {name:'source',type:'element'},
+    {name:'therapyClass',type:'column',source:'source',label:'Therapy class (row)'},
+    {name:'reviewType',type:'column',source:'source',label:'Review type (column)'},
+    {name:'hours',type:'column',source:'source',allowedTypes:['number','integer'],label:'Avg turnaround (hours)'},
+    {name:'volume',type:'column',source:'source',allowedTypes:['number','integer'],label:'PA volume'},
+    {name:'slaAt',type:'text',label:'SLA breach threshold (hours)',defaultValue:'72'}
+  ];
+  if(client) client.config.configureEditorPanel(defs);
+
+  function lerp(a,b,t){return a+(b-a)*t;}
+  function hex(c){return ('0'+Math.round(c).toString(16)).slice(-2);}
+  function hoursColor(h){ // 0..96+ -> green (fast) -> amber -> red (slow)
+    var t=Math.max(0,Math.min(1,h/96));
+    var s=[[30,142,90],[240,135,46],[235,23,0]];
+    var seg=t*2, i=Math.min(1,Math.floor(seg)), f=seg-i;
+    var r=lerp(s[i][0],s[i+1][0],f),g=lerp(s[i][1],s[i+1][1],f),b=lerp(s[i][2],s[i+1][2],f);
+    return '#'+hex(r)+hex(g)+hex(b);
+  }
+  var tip=document.getElementById('tip');
+  function draw(rows, cols, cellMap, slaAt){
+    var colheads=document.getElementById('colheads');
+    colheads.style.gridTemplateColumns='120px repeat('+cols.length+',1fr)';
+    colheads.innerHTML='<div></div>'+cols.map(function(c){return '<div class="colhead">'+c+'</div>';}).join('');
+    var grid=document.getElementById('grid'); grid.innerHTML='';
+    grid.style.gridTemplateColumns='120px repeat('+cols.length+',1fr)';
+    grid.style.gridTemplateRows='repeat('+rows.length+',1fr)';
+    var sum=0,n=0,breach=0;
+    rows.forEach(function(r){
+      var lbl=document.createElement('div'); lbl.className='rowlabel'; lbl.textContent=r; grid.appendChild(lbl);
+      cols.forEach(function(c){
+        var d=cellMap[r+'||'+c];
+        var c1=document.createElement('div');
+        if(d){
+          var isBreach=d.hours>=slaAt;
+          c1.className='cell'+(isBreach?' breach':'');
+          c1.style.background=hoursColor(d.hours);
+          c1.textContent=d.hours.toFixed(0)+'h';
+          sum+=d.hours; n++; if(isBreach)breach++;
+          c1.addEventListener('mousemove',function(e){
+            tip.innerHTML='<b>'+r+'</b> · '+c+'<br>Avg turnaround '+d.hours.toFixed(1)+'h · '+(d.volume||0).toLocaleString()+' PAs'+(isBreach?' · <span style="color:#ff8a70">SLA breach</span>':'');
+            tip.style.opacity=1; tip.style.left=(e.clientX+12)+'px'; tip.style.top=(e.clientY+12)+'px';
+          });
+          c1.addEventListener('mouseleave',function(){tip.style.opacity=0;});
+        } else {
+          c1.className='cell'; c1.style.background='#F4F1EF'; c1.style.color='#c0c0c0'; c1.textContent='—';
+        }
+        grid.appendChild(c1);
+      });
+    });
+    document.getElementById('avgV').textContent=n?(sum/n).toFixed(1):'—';
+    document.getElementById('cnt').textContent=n;
+    document.getElementById('breach').textContent=breach+' SLA breaches';
+  }
+  function synth(){
+    var classes=['Cardiometabolic','Oncology','Specialty / Autoimmune','Mental & Behavioral Health','Respiratory','Pain & Musculoskeletal','Other Chronic'];
+    var reviews=['Standard','Expedited','Peer-to-Peer','Appeal'];
+    var out=[];
+    classes.forEach(function(cl,i){ reviews.forEach(function(rv,j){
+      var base=[8,60][j%2!==undefined?0:0]; // placeholder, overwritten below
+      var h = 10 + (i*7 + j*11) % 70 + (rv==='Peer-to-Peer'?18:0) + (rv==='Appeal'?26:0) - (rv==='Expedited'?14:0);
+      var vol = 200 + ((i*97+j*53)%2200);
+      out.push({therapyClass:cl,reviewType:rv,hours:Math.max(4,h),volume:vol});
+    });});
+    return out;
+  }
+  var st={cfg:{},data:null,unsub:null};
+  function recompute(){
+    var c=st.cfg||{}; var slaAt=parseFloat(c.slaAt)||72;
+    var recs;
+    if(st.data&&c.therapyClass&&c.reviewType&&c.hours&&st.data[c.therapyClass]){
+      var tc=st.data[c.therapyClass]||[],rv=st.data[c.reviewType]||[],hr=st.data[c.hours]||[],vol=(c.volume&&st.data[c.volume])||[];
+      recs=tc.map(function(v,i){return {therapyClass:String(v),reviewType:String(rv[i]),hours:Number(hr[i])||0,volume:Number(vol[i])||0};});
+      if(!recs.length) recs=synth();
+    } else { recs=synth(); }
+    var rows=[],cols=[],cellMap={};
+    recs.forEach(function(r){
+      if(rows.indexOf(r.therapyClass)===-1) rows.push(r.therapyClass);
+      if(cols.indexOf(r.reviewType)===-1) cols.push(r.reviewType);
+      cellMap[r.therapyClass+'||'+r.reviewType]=r;
+    });
+    draw(rows,cols,cellMap,slaAt);
+  }
+  if(client){client.config.subscribe(function(cfg){st.cfg=cfg||{};
+    if(st.unsub){st.unsub();st.unsub=null;}
+    if(cfg&&cfg.source){st.unsub=client.elements.subscribeToElementData(cfg.source,function(d){st.data=d;recompute();});}
+    recompute();});
+    new ResizeObserver(function(){recompute();}).observe(document.body);
+  }else{recompute();}
+})();
+</script>
+</body>
+</html>

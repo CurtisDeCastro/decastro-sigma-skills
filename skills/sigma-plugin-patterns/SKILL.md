@@ -8,6 +8,9 @@ description: >-
   plugin itself — not for a dashboard.
 ---
 
+> Derived from **Neil Oliver's** `neil-oliver/sigma-plugin-skills`
+> (`.claude/skills/sigma-plugin-patterns.md`), with frontmatter and hosting guidance added.
+
 # Sigma Plugin Common Patterns & Flows
 
 This skill covers proven patterns and architectural approaches for building Sigma plugins. It complements the core Sigma Plugin Development skill with practical recipes for common needs.

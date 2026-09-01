@@ -42,11 +42,20 @@ Codex auto-loads `AGENTS.md` from the repo root.
 | **sigma-workbook-builder** | **Start here for workbooks.** Build production workbooks in code: production defaults (native elements over hand-built cards, theme-driven styling, live formulas instead of typed numbers, two-tier sourcing), verified element shapes, and the traps that pass `spec/verify` and still render wrong. |
 | **report-to-workbook** | Rebuild an existing report — a screenshot, PDF, HTML page, or a script that emits one — as a live Sigma workbook on your data. |
 | **sigma-workbook-styling** | Visual craft: the `style` object, theme tokens, repeated containers, images and icons, composition. |
-| **sigma-plugin-development** | Build a custom Sigma plugin with the `@sigmacomputing/plugin` SDK. |
+| **sigma-plugin-development** | Build a custom Sigma plugin with the `@sigmacomputing/plugin` SDK. Derived from Neil Oliver's plugin skills. |
 | **sigma-plugin-patterns** | Architectural recipes for plugins (config, state, interaction). |
 | **sigma-api** | Authenticate against the Sigma REST API. Prerequisite for the others. |
 | **sigma-data-models** | Create, retrieve, or modify a Sigma data model spec via the REST API. |
 | **sigma-embed** | Server-side embed URLs (JWT signing) and per-customer workbook variants via version tags. |
+
+## Examples
+
+`examples/plugins/` — eighteen working plugins named by what they do (`channel-sankey`,
+`capital-flow-chord`, `demand-clock`, `project-gantt`, …). Check the catalogue before
+building something new; use them as the authoring pattern when you do. They run from
+localhost by default — see
+[`reference/plugins.md`](./skills/sigma-workbook-builder/reference/plugins.md) for the
+native-element-first decision list and the deployment walkthrough.
 
 ## Prerequisites
 

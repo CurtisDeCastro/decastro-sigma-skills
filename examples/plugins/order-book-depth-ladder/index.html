@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Venue-Aggregated Depth Ladder — the broker Sigma Plugin</title>
+<script src="https://unpkg.com/@sigmacomputing/plugin"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+       background:#0B1330;color:#E8EEF9;overflow:hidden}
+  #wrap{height:100%;width:100%;display:flex;flex-direction:column;padding:12px 14px 10px}
+  #top{display:flex;align-items:baseline;gap:20px;flex:none;padding-bottom:8px;
+       border-bottom:1px solid rgba(208,220,236,.14)}
+  #pair{font-size:15px;font-weight:800;letter-spacing:.02em}
+  #pair span{color:#758696;font-weight:600}
+  .stat{display:flex;flex-direction:column;gap:1px}
+  .stat .k{font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#758696}
+  .stat .v{font-size:15px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
+  #stage{flex:1;min-height:0;position:relative;margin-top:6px}
+  svg{width:100%;height:100%;display:block}
+  #bottom{flex:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:8px;
+          border-top:1px solid rgba(208,220,236,.14)}
+  #venues{display:flex;flex-wrap:wrap;gap:6px}
+  .vch{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;color:#C6D3E8;
+       background:rgba(0,126,229,.10);border:1px solid rgba(0,126,229,.30);border-radius:999px;padding:2px 8px}
+  .vdot{width:7px;height:7px;border-radius:50%;flex:none}
+  #note{font-size:10px;color:#758696;font-weight:600;white-space:nowrap}
+  #tip{position:fixed;pointer-events:none;opacity:0;transition:opacity .08s;background:#111D4A;
+       border:1px solid rgba(0,126,229,.45);border-radius:7px;padding:7px 9px;font-size:11px;
+       line-height:1.45;box-shadow:0 8px 22px rgba(0,0,0,.45);z-index:9;white-space:nowrap}
+  #tip b{color:#FFFFFF}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="top">
+    <div id="pair">BTC / USD <span>· aggregated book</span></div>
+    <div class="stat"><div class="k">Mid</div><div class="v" id="sMid">—</div></div>
+    <div class="stat"><div class="k">Spread</div><div class="v" id="sSpr" style="color:#00A3FF">—</div></div>
+    <div class="stat"><div class="k">Bid depth</div><div class="v" id="sBid" style="color:#16C784">—</div></div>
+    <div class="stat"><div class="k">Ask depth</div><div class="v" id="sAsk" style="color:#EA3943">—</div></div>
+    <div class="stat"><div class="k">Imbalance</div><div class="v" id="sImb">—</div></div>
+  </div>
+  <div id="stage"><svg id="svg"></svg></div>
+  <div id="bottom">
+    <div id="venues"></div>
+    <div id="note">Depth bars = notional resting at each level · shaded band = the spread the broker quotes across</div>
+  </div>
+</div>
+<div id="tip"></div>
+<script>
+(function(){
+  var client=(window.sigmaComputing&&window.sigmaComputing.plugin&&window.sigmaComputing.plugin.client)||null;
+  var NS='http://www.w3.org/2000/svg', tip=document.getElementById('tip');
+
+  // the broker palette (lifted from the broker's site's own CSS) + crypto book convention for bid/ask
+  var BLUE='#007EE5', NAVY='#111D4A', SLATE='#758696', PALE='#D0DCEC';
+  var BID='#16C784', ASK='#EA3943';
+  // venue colors — the broker aggregates across its own liquidity plus street venues
+  var VC=['#007EE5','#2D40EA','#8FBFBF','#F0A030','#A46BE0','#5AC8E8','#758696','#E8608A'];
+
+  var defs=[
+    {name:'source',type:'element'},
+    {name:'side',  type:'column',source:'source',allowedTypes:['text'],label:'Side (BID / ASK)'},
+    {name:'price', type:'column',source:'source',allowedTypes:['number','integer'],label:'Price level'},
+    {name:'size',  type:'column',source:'source',allowedTypes:['number','integer'],label:'Notional resting at level'},
+    {name:'venue', type:'column',source:'source',allowedTypes:['text'],label:'Top venue at level'},
+    {name:'pair',  type:'text',label:'Pair label',defaultValue:'BTC / USD'}
+  ];
+  if(client) client.config.configureEditorPanel(defs);
+
+  function el(t,a){ var e=document.createElementNS(NS,t); for(var k in a)e.setAttribute(k,a[k]); return e; }
+  function txt(a,s){ var t=el('text',a); t.textContent=s; return t; }
+  function usd(n){
+    if(n==null||isNaN(n)) return '—';
+    var a=Math.abs(n);
+    if(a>=1e9) return '$'+(n/1e9).toFixed(2)+'B';
+    if(a>=1e6) return '$'+(n/1e6).toFixed(1)+'M';
+    if(a>=1e3) return '$'+(n/1e3).toFixed(0)+'K';
+    return '$'+n.toFixed(0);
+  }
+  function px(n){ return n==null||isNaN(n) ? '—' : n.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+
+  function draw(rows,pairLabel){
+    var svg=document.getElementById('svg'); while(svg.firstChild)svg.removeChild(svg.firstChild);
+    var st=document.getElementById('stage'), W=st.clientWidth||700, H=st.clientHeight||360;
+    if(W<60||H<60||!rows.length) return;
+
+    var asks=rows.filter(function(r){return r.side==='ASK';}).sort(function(a,b){return b.price-a.price;});
+    var bids=rows.filter(function(r){return r.side==='BID';}).sort(function(a,b){return b.price-a.price;});
+    if(!asks.length||!bids.length) return;
+
+    var bestAsk=asks[asks.length-1].price, bestBid=bids[0].price;
+    var mid=(bestAsk+bestBid)/2, sprBps=(bestAsk-bestBid)/mid*1e4;
+    var bidDepth=bids.reduce(function(s,r){return s+r.size;},0);
+    var askDepth=asks.reduce(function(s,r){return s+r.size;},0);
+    var imb=(bidDepth-askDepth)/(bidDepth+askDepth);
+
+    document.getElementById('pair').innerHTML=pairLabel+' <span>· aggregated book</span>';
+    document.getElementById('sMid').textContent=px(mid);
+    document.getElementById('sSpr').textContent=sprBps.toFixed(1)+' bps';
+    document.getElementById('sBid').textContent=usd(bidDepth);
+    document.getElementById('sAsk').textContent=usd(askDepth);
+    var iEl=document.getElementById('sImb');
+    iEl.textContent=(imb>=0?'+':'')+(imb*100).toFixed(0)+'% '+(imb>=0?'bid':'ask');
+    iEl.style.color=imb>=0?BID:ASK;
+
+    // ---- geometry: price gutter | depth bars | size gutter, with a spread band in the middle ----
+    var padL=8, priceW=Math.min(88,Math.max(62,W*0.11)), sizeW=Math.min(84,Math.max(58,W*0.10));
+    var padR=8, bandH=Math.max(20,Math.min(30,H*0.09));
+    var barX=padL+priceW+6, barW=W-barX-sizeW-padR;
+    var n=asks.length+bids.length;
+    var rowH=(H-bandH-4)/n;
+    if(rowH<9){ rowH=9; }
+    var maxSize=Math.max.apply(null,rows.map(function(r){return r.size;}))||1;
+    var fs=Math.max(8,Math.min(11.5,rowH*0.62));
+
+    // venue color map, stable by first appearance
+    var vmap={}, vi=0;
+    rows.forEach(function(r){ if(r.venue&&!(r.venue in vmap)) vmap[r.venue]=VC[vi++%VC.length]; });
+
+    function rowGroup(r,y,side){
+      var g=el('g',{});
+      var col=side==='BID'?BID:ASK;
+      var w=Math.max(2,(r.size/maxSize)*barW);
+      // depth bar grows from the CENTRE gutter outward so both books read off the same spine
+      var x=barX;
+      g.appendChild(el('rect',{x:barX,y:y+1,width:barW,height:rowH-2,fill:'#FFFFFF','fill-opacity':.028}));
+      g.appendChild(el('rect',{x:x,y:y+1,width:w,height:rowH-2,rx:2,fill:col,'fill-opacity':.30}));
+      g.appendChild(el('rect',{x:x,y:y+1,width:Math.max(2.5,w*0.06),height:rowH-2,fill:col}));
+      // venue tick at the end of the bar
+      if(r.venue) g.appendChild(el('rect',{x:x+w-2.5,y:y+1,width:2.5,height:rowH-2,fill:vmap[r.venue]}));
+      g.appendChild(txt({x:padL+priceW,y:y+rowH/2+fs*0.36,'text-anchor':'end','font-size':fs,
+        'font-weight':700,fill:col,'font-family':'ui-monospace,SFMono-Regular,Menlo,monospace'}, px(r.price)));
+      g.appendChild(txt({x:W-padR,y:y+rowH/2+fs*0.36,'text-anchor':'end','font-size':fs,
+        'font-weight':700,fill:PALE,'font-family':'ui-monospace,SFMono-Regular,Menlo,monospace'}, usd(r.size)));
+      g.appendChild(el('rect',{x:0,y:y,width:W,height:rowH,fill:'transparent'}));
+      g.addEventListener('mousemove',function(e){
+        tip.style.opacity=1; tip.style.left=(e.clientX+14)+'px'; tip.style.top=(e.clientY+14)+'px';
+        tip.innerHTML='<b>'+side+' '+px(r.price)+'</b><br/>'+usd(r.size)+' resting'+
+          (r.venue?'<br/>top venue: <b>'+r.venue+'</b>':'')+
+          '<br/>'+((Math.abs(r.price-mid)/mid)*1e4).toFixed(1)+' bps from mid';
+      });
+      g.addEventListener('mouseleave',function(){ tip.style.opacity=0; });
+      return g;
+    }
+
+    var y=0;
+    asks.forEach(function(r){ svg.appendChild(rowGroup(r,y,'ASK')); y+=rowH; });
+
+    // ---- the spread band: what the broker actually quotes across ----
+    var bg=el('g',{});
+    bg.appendChild(el('rect',{x:0,y:y+1,width:W,height:bandH-2,fill:BLUE,'fill-opacity':.13}));
+    bg.appendChild(el('line',{x1:0,y1:y+1,x2:W,y2:y+1,stroke:BLUE,'stroke-opacity':.55,'stroke-width':1}));
+    bg.appendChild(el('line',{x1:0,y1:y+bandH-1,x2:W,y2:y+bandH-1,stroke:BLUE,'stroke-opacity':.55,'stroke-width':1}));
+    var bfs=Math.max(9,Math.min(12,bandH*0.48));
+    bg.appendChild(txt({x:padL+priceW,y:y+bandH/2+bfs*0.36,'text-anchor':'end','font-size':bfs,'font-weight':800,
+      fill:'#FFFFFF','font-family':'ui-monospace,SFMono-Regular,Menlo,monospace'}, px(mid)));
+    bg.appendChild(txt({x:barX+8,y:y+bandH/2+bfs*0.36,'font-size':bfs,'font-weight':800,fill:'#7FD0FF',
+      'letter-spacing':'.06em'}, 'SPREAD  '+sprBps.toFixed(1)+' BPS'));
+    bg.appendChild(txt({x:W-padR,y:y+bandH/2+bfs*0.36,'text-anchor':'end','font-size':bfs*0.85,'font-weight':700,
+      fill:SLATE}, 'MID'));
+    svg.appendChild(bg);
+    y+=bandH;
+
+    bids.forEach(function(r){ svg.appendChild(rowGroup(r,y,'BID')); y+=rowH; });
+
+    var lg=document.getElementById('venues'); lg.innerHTML='';
+    Object.keys(vmap).forEach(function(v){
+      var d=document.createElement('div'); d.className='vch';
+      d.innerHTML='<span class="vdot" style="background:'+vmap[v]+'"></span>'+v; lg.appendChild(d);
+    });
+  }
+
+  // standalone preview — a believable institutional BTC book, 8 levels a side
+  function synth(){
+    var mid=67403, tick=4, out=[];
+    var vs=['the broker','Coinbase Prime','Binance','OKX','Kraken','LMAX','Bitstamp'];
+    for(var i=0;i<8;i++){
+      out.push({side:'ASK',price:mid+tick*(i+1)+3,size:Math.round((820000+i*160000)*(0.7+((i*37)%11)/11)),venue:vs[(i*3)%vs.length]});
+      out.push({side:'BID',price:mid-tick*(i+1)-3,size:Math.round((980000+i*150000)*(0.7+((i*29)%11)/11)),venue:vs[(i*5)%vs.length]});
+    }
+    return out;
+  }
+
+  var stt={cfg:{},data:null,unsub:null};
+  function recompute(){
+    var c=stt.cfg||{}, d=stt.data, label=(c.pair||'BTC / USD');
+    if(d&&c.side&&c.price&&c.size&&d[c.side]){
+      var sa=d[c.side]||[], pa=d[c.price]||[], za=d[c.size]||[], va=(c.venue&&d[c.venue])||[];
+      var rows=[];
+      for(var i=0;i<sa.length;i++){
+        var sd=String(sa[i]||'').toUpperCase().indexOf('ASK')>=0?'ASK':'BID';
+        rows.push({side:sd,price:Number(pa[i]),size:Number(za[i])||0,venue:va[i]||null});
+      }
+      rows=rows.filter(function(r){return !isNaN(r.price);});
+      if(rows.length){ draw(rows,label); return; }
+    }
+    draw(synth(),label);
+  }
+
+  if(client){
+    client.config.subscribe(function(cfg){
+      stt.cfg=cfg||{};
+      if(stt.unsub){stt.unsub();stt.unsub=null;}
+      if(cfg&&cfg.source){ stt.unsub=client.elements.subscribeToElementData(cfg.source,function(d){ stt.data=d; recompute(); }); }
+      recompute();
+    });
+  } else { recompute(); }
+
+  // Sigma sizes the panel AFTER first paint — redraw on every resize, not just load.
+  if(window.ResizeObserver){ new ResizeObserver(function(){ recompute(); }).observe(document.getElementById('stage')); }
+  window.addEventListener('resize',function(){ recompute(); });
+})();
+</script>
+</body>
+</html>

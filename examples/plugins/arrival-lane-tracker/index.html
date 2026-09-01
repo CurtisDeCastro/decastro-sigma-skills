@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Carside To Go — Lane Board (the chain Sigma Plugin)</title>
+<script src="https://unpkg.com/@sigmacomputing/plugin"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:-apple-system,BlinkMacSystemFont,Inter,"Segoe UI",Roboto,Arial,sans-serif;background:transparent;color:#191919;overflow:hidden}
+  #wrap{height:100%;width:100%;display:flex;flex-direction:column;padding:12px 14px 10px;gap:8px}
+  #top{display:flex;justify-content:space-between;align-items:baseline;flex:0 0 auto;gap:12px}
+  #ttl{font-size:13px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#AB192D;white-space:nowrap}
+  #meta{font-size:11px;color:#8a8f94;text-align:right}
+  #meta b{color:#191919;font-weight:800}
+  #meta .bad{color:#AB192D}
+  #stage{flex:1;position:relative;overflow:hidden}
+  svg{width:100%;height:100%;display:block}
+  #legend{flex:0 0 auto;display:flex;flex-wrap:wrap;gap:4px 16px;font-size:10px;color:#4a5560;align-items:center;justify-content:center}
+  #legend .li{display:flex;align-items:center;gap:5px}
+  .dot{width:9px;height:9px;border-radius:2px;flex:0 0 9px}
+  #tip{position:fixed;pointer-events:none;background:#191919;border-radius:8px;padding:8px 10px;font-size:11px;color:#fff;opacity:0;transition:opacity .1s;z-index:20;white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+  #tip b{color:#CBDB2F}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="top">
+    <div id="ttl">Carside To&nbsp;Go — lane board</div>
+    <div id="meta"><b id="occ">—</b> stalls occupied · avg wait <b id="avg">—</b> · <b id="late" class="bad">—</b> past promise</div>
+  </div>
+  <div id="stage"><svg id="svg" xmlns="http://www.w3.org/2000/svg"></svg></div>
+  <div id="legend"></div>
+</div>
+<div id="tip"></div>
+<script>
+(function(){
+  var client=(window.sigmaComputing&&window.sigmaComputing.plugin&&window.sigmaComputing.plugin.client)||null;
+  var NS='http://www.w3.org/2000/svg', tip=document.getElementById('tip');
+
+  // the chain brand palette (from their own logo SVG) + service-state ramp
+  var RED='#AB192D', APPLE='#CBDB2F', ASPHALT='#2B2F33', STRIPE='#E9C46A';
+  var STATES=[
+    {key:'open',    name:'Open stall',       c:'#3E464D'},
+    {key:'ontime',  name:'On time',          c:'#4C9A2A'},
+    {key:'closing', name:'Nearing promise',  c:'#E0A400'},
+    {key:'late',    name:'Past promise time',c:RED}
+  ];
+  var SC={}; STATES.forEach(function(s){SC[s.key]=s;});
+
+  var defs=[
+    {name:'source',type:'element'},
+    {name:'stall',  type:'column',source:'source',allowedTypes:['number','integer'],label:'Stall number'},
+    {name:'order',  type:'column',source:'source',allowedTypes:['text','number','integer'],label:'Order ID (blank = open stall)'},
+    {name:'wait',   type:'column',source:'source',allowedTypes:['number','integer'],label:'Minutes waiting'},
+    {name:'promise',type:'column',source:'source',allowedTypes:['number','integer'],label:'Promise time (minutes)'}
+  ];
+  if(client) client.config.configureEditorPanel(defs);
+
+  function el(t,a){ var e=document.createElementNS(NS,t); for(var k in a)e.setAttribute(k,a[k]); return e; }
+  function mmss(m){ if(m==null) return '—'; var s=Math.max(0,Math.round(m*60)); return Math.floor(s/60)+':'+('0'+(s%60)).slice(-2); }
+  function stateOf(r){
+    if(!r.order) return 'open';
+    if(r.wait>=r.promise) return 'late';
+    if(r.wait>=r.promise*0.75) return 'closing';
+    return 'ontime';
+  }
+
+  function draw(rows){
+    var svg=document.getElementById('svg'); while(svg.firstChild)svg.removeChild(svg.firstChild);
+    var st=document.getElementById('stage'), W=st.clientWidth||640, H=st.clientHeight||360;
+    if(W<40||H<40||!rows.length) return;
+
+    // ---- lay the stalls out in a parking bay: as many columns as comfortably fit ----
+    var n=rows.length;
+    var cols=Math.max(2,Math.min(n,Math.round(Math.sqrt(n*(W/H)*0.55))));
+    var laneRows=Math.ceil(n/cols);
+    var padX=6, padY=6, curb=16;
+    var cw=(W-padX*2)/cols, ch=(H-padY*2-curb*laneRows)/laneRows;
+    if(ch<28){ ch=Math.max(28,(H-padY*2)/laneRows-curb); }
+
+    var occ=0, lateN=0, waitSum=0;
+
+    for(var i=0;i<n;i++){
+      var r=rows[i], k=stateOf(r), sc=SC[k];
+      if(k!=='open'){ occ++; waitSum+=r.wait; if(k==='late') lateN++; }
+
+      var cix=i%cols, riy=Math.floor(i/cols);
+      var x=padX+cix*cw, y=padY+riy*(ch+curb);
+      var bw=cw-6, bh=ch-4;
+      var g=el('g',{});
+
+      // asphalt stall + painted stall lines
+      g.appendChild(el('rect',{x:x,y:y,width:bw,height:bh,rx:5,fill:ASPHALT}));
+      g.appendChild(el('rect',{x:x,y:y,width:bw,height:bh,rx:5,fill:'none',stroke:'#FFFFFF','stroke-opacity':.18,'stroke-width':1}));
+      g.appendChild(el('line',{x1:x+2,y1:y+bh,x2:x+bw-2,y2:y+bh,stroke:STRIPE,'stroke-opacity':.55,'stroke-width':2}));
+
+      if(k==='open'){
+        var ot=el('text',{x:x+bw/2,y:y+bh/2+4,'text-anchor':'middle','font-size':Math.min(11,bh*0.26),'font-weight':700,fill:'#6E767E'});
+        ot.textContent='OPEN'; g.appendChild(ot);
+      } else {
+        // the "car": a filled bar whose length is progress against the promise time
+        var prog=Math.max(0.06,Math.min(1,r.wait/(r.promise||1)));
+        var inset=Math.max(4,bw*0.06), carW=(bw-inset*2)*prog, carH=Math.max(10,bh*0.42);
+        var cy=y+bh*0.30;
+        g.appendChild(el('rect',{x:x+inset,y:cy,width:bw-inset*2,height:carH,rx:carH/2,fill:'#FFFFFF','fill-opacity':.10}));
+        g.appendChild(el('rect',{x:x+inset,y:cy,width:carW,height:carH,rx:carH/2,fill:sc.c}));
+        if(k==='late'){ // pulse ring on the ones the manager has to fix now
+          g.appendChild(el('rect',{x:x+1.5,y:y+1.5,width:bw-3,height:bh-3,rx:5,fill:'none',stroke:RED,'stroke-width':2}));
+        }
+        var fs=Math.min(12,Math.max(8,bh*0.21));
+        var ol=el('text',{x:x+inset,y:y+bh*0.24,'font-size':fs,'font-weight':800,fill:'#FFFFFF','fill-opacity':.92});
+        ol.textContent='#'+r.order; g.appendChild(ol);
+        var wl=el('text',{x:x+inset,y:y+bh*0.90,'font-size':fs,'font-weight':800,fill:sc.c});
+        wl.textContent=mmss(r.wait)+(k==='late'?'  ▲':''); g.appendChild(wl);
+      }
+
+      // stall number on the curb below
+      var sl=el('text',{x:x+bw/2,y:y+bh+12,'text-anchor':'middle','font-size':9,'font-weight':700,fill:'#8A8F94'});
+      sl.textContent='STALL '+r.stall; g.appendChild(sl);
+
+      (function(rr,kk){
+        g.addEventListener('mousemove',function(e){
+          tip.style.opacity=1; tip.style.left=(e.clientX+14)+'px'; tip.style.top=(e.clientY+14)+'px';
+          tip.innerHTML= kk==='open'
+            ? '<b>Stall '+rr.stall+'</b><br>Open'
+            : '<b>Stall '+rr.stall+' · #'+rr.order+'</b><br>'+SC[kk].name+'<br>waiting '+mmss(rr.wait)+' of '+mmss(rr.promise)+' promise';
+        });
+        g.addEventListener('mouseleave',function(){ tip.style.opacity=0; });
+      })(r,k);
+      svg.appendChild(g);
+    }
+
+    document.getElementById('occ').textContent=occ+'/'+n;
+    document.getElementById('avg').textContent=occ?mmss(waitSum/occ):'—';
+    document.getElementById('late').textContent=lateN+(lateN===1?' order':' orders');
+
+    var lg=document.getElementById('legend'); lg.innerHTML='';
+    STATES.forEach(function(s){
+      var li=document.createElement('div'); li.className='li';
+      li.innerHTML='<span class="dot" style="background:'+s.c+'"></span>'+s.name; lg.appendChild(li);
+    });
+  }
+
+  // standalone preview data — a believable Friday-dinner curb
+  function synth(){
+    var w=[2.2,7.8,null,0.6,11.3,null,1.1,4.5,9.9,null,3.4,6.2];
+    return w.map(function(v,i){
+      return {stall:i+1, order:v==null?null:(8841+i*2), wait:v==null?0:v, promise:8};
+    });
+  }
+
+  var stt={cfg:{},data:null,unsub:null};
+  function recompute(){
+    var c=stt.cfg||{}, d=stt.data;
+    if(d&&c.stall&&c.wait&&d[c.stall]){
+      var sa=d[c.stall]||[], oa=(c.order&&d[c.order])||[], wa=d[c.wait]||[], pa=(c.promise&&d[c.promise])||[];
+      var rows=[];
+      for(var i=0;i<sa.length;i++){
+        var o=oa[i];
+        rows.push({stall:sa[i], order:(o===null||o===undefined||o==='')?null:o,
+                   wait:Number(wa[i])||0, promise:Number(pa[i])||8});
+      }
+      rows.sort(function(a,b){return Number(a.stall)-Number(b.stall);});
+      if(rows.length){ draw(rows); return; }
+    }
+    draw(synth());
+  }
+
+  if(client){
+    client.config.subscribe(function(cfg){
+      stt.cfg=cfg||{};
+      if(stt.unsub){stt.unsub();stt.unsub=null;}
+      if(cfg&&cfg.source){ stt.unsub=client.elements.subscribeToElementData(cfg.source,function(d){ stt.data=d; recompute(); }); }
+      recompute();
+    });
+  } else { recompute(); }
+
+  // Sigma sizes the panel AFTER first paint — redraw on every resize, not just load.
+  if(window.ResizeObserver){ new ResizeObserver(function(){ recompute(); }).observe(document.getElementById('stage')); }
+  window.addEventListener('resize',function(){ recompute(); });
+})();
+</script>
+</body>
+</html>

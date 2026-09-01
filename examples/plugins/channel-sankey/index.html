@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Channel Flow &mdash; the brand Sigma Plugin</title>
+<script src="https://unpkg.com/@sigmacomputing/plugin"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:-apple-system,BlinkMacSystemFont,Inter,"Segoe UI",Roboto,Arial,sans-serif;background:transparent;color:#001039;overflow:hidden}
+  #wrap{height:100%;width:100%;display:flex;flex-direction:column;padding:10px 14px 6px;gap:6px}
+  #top{display:flex;justify-content:space-between;align-items:baseline;flex:0 0 auto}
+  #ttl{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#001039}
+  #meta{font-size:11px;color:#7C879B}
+  #meta b{color:#001039}
+  #stage{flex:1;position:relative;overflow:hidden;min-height:120px}
+  svg{width:100%;height:100%;display:block}
+  .rib{transition:opacity .12s}
+  .rib:hover{opacity:1 !important}
+  .nlab{font-size:11px;font-weight:700;fill:#001039}
+  .nsub{font-size:9.5px;font-weight:600;fill:#8A93A6}
+  .colhd{font-size:9.5px;font-weight:800;fill:#A3ABBB;letter-spacing:.12em}
+  #legend{flex:0 0 auto;display:flex;flex-wrap:wrap;gap:3px 14px;font-size:10px;color:#4A5568;align-items:center;justify-content:center}
+  #legend .li{display:flex;align-items:center;gap:5px}
+  .dot{width:9px;height:9px;border-radius:2px;flex:0 0 9px}
+  #tip{position:fixed;pointer-events:none;background:#001039;border-radius:8px;padding:8px 10px;font-size:11px;color:#fff;opacity:0;transition:opacity .1s;z-index:20;white-space:nowrap;box-shadow:0 10px 26px rgba(0,16,57,.42)}
+  #tip b{color:#7FB2FF}
+  #tip .up{color:#5FD39B}
+  #tip .dn{color:#FF8A8A}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="top">
+    <div id="ttl">Net sales flow &mdash; division to channel</div>
+    <div id="meta"><b id="tot">&mdash;</b> net sales &middot; largest lane <b id="big">&mdash;</b></div>
+  </div>
+  <div id="stage"><svg id="svg" xmlns="http://www.w3.org/2000/svg"></svg></div>
+  <div id="legend"></div>
+</div>
+<div id="tip"></div>
+<script>
+(function(){
+  var client=(window.sigmaComputing&&window.sigmaComputing.plugin&&window.sigmaComputing.plugin.client)||null;
+  var NS='http://www.w3.org/2000/svg', tip=document.getElementById('tip');
+  var SRC_C=['#001039','#123C7A','#2E6FB0','#5B8AC7','#8AA7D4','#B4C6E4'];
+  var TGT_C='#001039';
+  var GROW='#2E9B6B', SHRINK='#C8102E';
+  var defs=[
+    {name:'source',type:'element'},
+    {name:'from',type:'column',source:'source',allowedTypes:['text'],label:'From (division / category)'},
+    {name:'to',type:'column',source:'source',allowedTypes:['text'],label:'To (channel)'},
+    {name:'value',type:'column',source:'source',allowedTypes:['number','integer'],label:'Net sales'},
+    {name:'delta',type:'column',source:'source',allowedTypes:['number','integer'],label:'YoY change (optional)'}
+  ];
+  if(client) client.config.configureEditorPanel(defs);
+  function fmt(n){ var a=Math.abs(n);
+    if(a>=1e9)return '$'+(n/1e9).toFixed(1)+'B';
+    if(a>=1e6)return '$'+(n/1e6).toFixed(1)+'M';
+    if(a>=1e3)return '$'+(n/1e3).toFixed(0)+'K';
+    return '$'+Math.round(n); }
+  function pct(n){ return (n>=0?'+':'')+(n*100).toFixed(1)+'%'; }
+  function el(t,a){ var e=document.createElementNS(NS,t); for(var k in a)e.setAttribute(k,a[k]); return e; }
+  function ribbon(x0,y0a,y0b,x1,y1a,y1b){
+    var mx=(x0+x1)/2;
+    return 'M'+x0+','+y0a
+      +' C'+mx+','+y0a+' '+mx+','+y1a+' '+x1+','+y1a
+      +' L'+x1+','+y1b
+      +' C'+mx+','+y1b+' '+mx+','+y0b+' '+x0+','+y0b+' Z';
+  }
+  function draw(links){
+    var svg=document.getElementById('svg'); while(svg.firstChild)svg.removeChild(svg.firstChild);
+    var st=document.getElementById('stage'), W=st.clientWidth||640, H=st.clientHeight||340;
+    if(W<40||H<40) return;
+    if(!links.length) return;
+    var srcOrder=[], tgtOrder=[], S={}, T={}, tot=0, big=null;
+    links.forEach(function(l){
+      if(!(l.from in S)){ S[l.from]={v:0}; srcOrder.push(l.from); }
+      if(!(l.to in T)){ T[l.to]={v:0}; tgtOrder.push(l.to); }
+      S[l.from].v+=l.v; T[l.to].v+=l.v; tot+=l.v;
+      if(!big||l.v>big.v) big=l;
+    });
+    srcOrder.sort(function(a,b){return S[b].v-S[a].v;});
+    tgtOrder.sort(function(a,b){return T[b].v-T[a].v;});
+    var PADT=18, PADB=6, LW=Math.min(150,Math.max(88,W*0.20)), NW=9;
+    var x0=LW, x1=W-LW-NW;
+    var GAP=Math.max(3,Math.min(11,(H-PADT-PADB)*0.035));
+    function scale(order,map){
+      var avail=(H-PADT-PADB)-GAP*(order.length-1);
+      if(avail<order.length*2) avail=order.length*2;
+      var k=avail/tot, y=PADT, out={};
+      order.forEach(function(name){
+        var h=Math.max(2,map[name].v*k);
+        out[name]={y0:y,y1:y+h,cur:y}; y+=h+GAP;
+      });
+      return out;
+    }
+    var SY=scale(srcOrder,S), TY=scale(tgtOrder,T);
+    var g=el('g',{}); svg.appendChild(g);
+    var h1=el('text',{x:2,y:10}); h1.setAttribute('class','colhd'); h1.textContent='DIVISION'; g.appendChild(h1);
+    var h2=el('text',{x:W-2,y:10,'text-anchor':'end'}); h2.setAttribute('class','colhd'); h2.textContent='CHANNEL'; g.appendChild(h2);
+    links.slice().sort(function(a,b){return b.v-a.v;}).forEach(function(l){
+      var s=SY[l.from], t=TY[l.to];
+      var k0=(s.y1-s.y0)/S[l.from].v, k1=(t.y1-t.y0)/T[l.to].v;
+      var h0=Math.max(1,l.v*k0), hh=Math.max(1,l.v*k1);
+      var d=ribbon(x0+NW, s.cur, s.cur+h0, x1, t.cur, t.cur+hh);
+      var si=srcOrder.indexOf(l.from);
+      var col=(l.d===null||l.d===undefined)?SRC_C[si%SRC_C.length]:(l.d>=0?GROW:SHRINK);
+      var p=el('path',{d:d,fill:col,'fill-opacity':0.42,stroke:col,'stroke-opacity':0.18});
+      p.classList.add('rib');
+      (function(ll){ p.addEventListener('mousemove',function(e){
+          tip.style.opacity=1; tip.style.left=(e.clientX+14)+'px'; tip.style.top=(e.clientY+14)+'px';
+          var dl=(ll.d===null||ll.d===undefined)?'':'<br><span class="'+(ll.d>=0?'up':'dn')+'">'+pct(ll.d)+' vs LY</span>';
+          tip.innerHTML='<b>'+ll.from+' &rarr; '+ll.to+'</b><br>'+fmt(ll.v)+' &middot; '+(ll.v/tot*100).toFixed(1)+' % of net sales'+dl;
+        });
+        p.addEventListener('mouseleave',function(){ tip.style.opacity=0; }); })(l);
+      g.appendChild(p);
+      s.cur+=h0; t.cur+=hh;
+    });
+    srcOrder.forEach(function(name,i){
+      var s=SY[name];
+      g.appendChild(el('rect',{x:x0,y:s.y0,width:NW,height:Math.max(2,s.y1-s.y0),rx:2,fill:SRC_C[i%SRC_C.length]}));
+      var mid=(s.y0+s.y1)/2;
+      var tl=el('text',{x:x0-8,y:mid-1,'text-anchor':'end'}); tl.setAttribute('class','nlab'); tl.textContent=name; g.appendChild(tl);
+      var sl=el('text',{x:x0-8,y:mid+11,'text-anchor':'end'}); sl.setAttribute('class','nsub');
+      sl.textContent=fmt(S[name].v)+'   '+(S[name].v/tot*100).toFixed(0)+'%'; g.appendChild(sl);
+    });
+    tgtOrder.forEach(function(name){
+      var t=TY[name];
+      g.appendChild(el('rect',{x:x1,y:t.y0,width:NW,height:Math.max(2,t.y1-t.y0),rx:2,fill:TGT_C}));
+      var mid=(t.y0+t.y1)/2;
+      var tl=el('text',{x:x1+NW+8,y:mid-1}); tl.setAttribute('class','nlab'); tl.textContent=name; g.appendChild(tl);
+      var sl=el('text',{x:x1+NW+8,y:mid+11}); sl.setAttribute('class','nsub');
+      sl.textContent=fmt(T[name].v)+'   '+(T[name].v/tot*100).toFixed(0)+'%'; g.appendChild(sl);
+    });
+    document.getElementById('tot').textContent=fmt(tot);
+    document.getElementById('big').innerHTML=big?(big.from+' &rarr; '+big.to):'&mdash;';
+    var hasD=links.some(function(l){return l.d!==null&&l.d!==undefined;});
+    var lg=document.getElementById('legend'); lg.innerHTML='';
+    var items = hasD
+      ? [{n:'lane growing vs LY',c:GROW},{n:'lane declining vs LY',c:SHRINK}]
+      : srcOrder.map(function(s,i){return {n:s,c:SRC_C[i%SRC_C.length]};});
+    items.forEach(function(it){ var li=document.createElement('div'); li.className='li';
+      li.innerHTML='<span class="dot" style="background:'+it.c+'"></span>'+it.n; lg.appendChild(li); });
+  }
+  function synth(){
+    var out=[], divs=[["Men's",0.44],["Women's",0.38],["Kids",0.10],["Sleepwear",0.08]];
+    var chans=[["Department Stores",0.34],["Mass Retailers",0.29],["Brand Retail Stores",0.14],["brand-dtc.com",0.14],["Licensed",0.09]];
+    var TOT=338e6;
+    divs.forEach(function(d,i){ chans.forEach(function(c,j){
+      var w=d[1]*c[1]*(1+0.30*Math.sin(i*2.1+j*1.3));
+      out.push({from:d[0],to:c[0],v:TOT*w,d:0.14*Math.sin(i*1.7+j*2.3)});
+    });});
+    return out;
+  }
+  var stt={cfg:{},data:null,unsub:null};
+  function recompute(){
+    var c=stt.cfg||{}, d=stt.data;
+    if(d&&c.from&&c.to&&c.value&&d[c.from]&&d[c.to]&&d[c.value]){
+      var f=d[c.from],t=d[c.to],v=d[c.value],dd=(c.delta&&d[c.delta])?d[c.delta]:null;
+      var agg={},order=[];
+      for(var i=0;i<f.length;i++){
+        var fk=f[i],tk=t[i]; if(fk===null||fk===undefined||tk===null||tk===undefined) continue;
+        var key=fk+' >> '+tk;
+        if(!(key in agg)){ agg[key]={from:String(fk),to:String(tk),v:0,d:(dd?0:null),_n:0}; order.push(key); }
+        agg[key].v+=Number(v[i])||0;
+        if(dd){ agg[key].d+=Number(dd[i])||0; agg[key]._n++; }
+      }
+      var links=order.map(function(k){ var a=agg[k]; if(dd&&a._n) a.d=a.d/a._n; return a; })
+                     .filter(function(a){return a.v>0;});
+      if(links.length){ draw(links); return; }
+    }
+    draw(synth());
+  }
+  if(client){
+    client.config.subscribe(function(cfg){
+      stt.cfg=cfg||{};
+      if(stt.unsub){ stt.unsub(); stt.unsub=null; }
+      if(cfg&&cfg.source){ stt.unsub=client.elements.subscribeToElementData(cfg.source,function(dat){ stt.data=dat; recompute(); }); }
+      recompute();
+    });
+  } else { recompute(); }
+  var stage=document.getElementById('stage');
+  if(window.ResizeObserver){ new ResizeObserver(function(){ recompute(); }).observe(stage); }
+  window.addEventListener('resize',function(){ recompute(); });
+})();
+</script>
+</body>
+</html>

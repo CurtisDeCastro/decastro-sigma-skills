@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Risk Stratification Pyramid — the risk-bearing provider Sigma Plugin</title>
+<script src="https://unpkg.com/@sigmacomputing/plugin"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:-apple-system,BlinkMacSystemFont,Inter,"Segoe UI",Roboto,Arial,sans-serif;background:transparent;color:#20282E;overflow:hidden}
+  #wrap{height:100%;width:100%;display:flex;flex-direction:column;padding:14px 18px 12px;gap:8px}
+  #top{display:flex;justify-content:space-between;align-items:baseline;flex:0 0 auto;gap:12px;flex-wrap:wrap}
+  #ttl{font-size:12px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#20282E}
+  #meta{font-size:11px;color:#8A8F94;white-space:nowrap}
+  #meta b{color:#20282E;font-weight:700}
+  #pyr{flex:1;display:flex;flex-direction:column;min-height:0;justify-content:center;gap:5px}
+  .row{display:flex;align-items:center;gap:10px;flex:1 1 0;min-height:0}
+  .tname{flex:0 0 104px;font-size:11.5px;font-weight:700;color:#20282E;text-align:right;line-height:1.15}
+  .tname i{display:block;font-style:normal;font-weight:500;font-size:10px;color:#93837E}
+  .bandwrap{flex:1 1 auto;display:flex;justify-content:center;min-width:0;height:100%;align-items:center}
+  .band{height:74%;min-height:15px;border-radius:4px;position:relative;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(32,40,46,.20);cursor:default;transition:filter .1s}
+  .band:hover{filter:brightness(1.10) saturate(1.10)}
+  .band span{font-size:11px;font-weight:800;color:#FFFFFF;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.28);padding:0 6px;overflow:hidden}
+  .nums{flex:0 0 132px;font-size:11.5px;line-height:1.2;color:#20282E}
+  .nums b{font-weight:800;font-size:13px}
+  .nums span{color:#8A8F94;font-size:10.5px}
+  .share{flex:0 0 116px;display:flex;flex-direction:column;gap:2px}
+  .strack{height:9px;border-radius:3px;background:#EDEDEA;overflow:hidden}
+  .sfill{height:100%;border-radius:3px}
+  .slab{font-size:10px;color:#8A8F94;white-space:nowrap}
+  .slab b{color:#20282E;font-weight:700}
+  #foot{flex:0 0 auto;display:flex;flex-direction:column;gap:5px;padding-top:4px;border-top:1px solid #ECEDEF}
+  #cchead{display:flex;justify-content:space-between;align-items:baseline;font-size:10.5px;color:#8A8F94}
+  #cchead b{color:#20282E;font-weight:700}
+  #ccbar{display:flex;height:15px;border-radius:4px;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(32,40,46,.08)}
+  .ccseg{height:100%;min-width:1px}
+  #legend{display:flex;flex-wrap:wrap;align-items:center;gap:3px 12px;font-size:10.5px;color:#5B666E}
+  .lg{display:flex;align-items:center;gap:5px;white-space:nowrap}
+  .sw{width:9px;height:9px;border-radius:2px;flex:0 0 auto}
+  #tip{position:fixed;pointer-events:none;background:#20282E;border:1px solid #3E4C57;border-radius:8px;padding:8px 10px;font-size:11px;color:#F3F1EE;opacity:0;transition:opacity .1s;z-index:10;white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+  #tip b{color:#F47F1C}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="top">
+    <div id="ttl">Risk stratification — attributed population</div>
+    <div id="meta">attributed <b id="m-lives">—</b> · blended PMPM <b id="m-pmpm">—</b> · rising-or-worse <b id="m-rising">—</b></div>
+  </div>
+  <div id="pyr"></div>
+  <div id="foot">
+    <div id="cchead"><span>Cost concentration — share of medical spend by acuity tier</span><span id="cc-call">—</span></div>
+    <div id="ccbar"></div>
+    <div id="legend"></div>
+  </div>
+</div>
+<div id="tip"></div>
+<script>
+(function(){
+  var client=(window.sigmaComputing&&window.sigmaComputing.plugin&&window.sigmaComputing.plugin.client)||null;
+  var defs=[
+    {name:'source',type:'element'},
+    {name:'tier',type:'column',source:'source',label:'Acuity tier'},
+    {name:'rank',type:'column',source:'source',allowedTypes:['number','integer'],label:'Tier rank (1 = highest acuity)'},
+    {name:'lives',type:'column',source:'source',allowedTypes:['number','integer'],label:'Attributed lives'},
+    {name:'pmpm',type:'column',source:'source',allowedTypes:['number','integer'],label:'PMPM'},
+    {name:'costShare',type:'column',source:'source',allowedTypes:['number','integer'],label:'Share of medical spend (0-1)'}
+  ];
+  if(client) client.config.configureEditorPanel(defs);
+
+  // the risk-bearing provider palette — brand orange at the top of the pyramid, taupe/slate at the base.
+  var PAL=['#B4470F','#F47F1C','#E0A96D','#93837E','#5B666E','#20282E'];
+  var tip=document.getElementById('tip');
+
+  function fmtN(v){ v=Math.round(v);
+    if(v>=1e6) return (v/1e6).toFixed(2).replace(/\.?0+$/,'')+'M';
+    if(v>=1e4) return (v/1e3).toFixed(0)+'K';
+    if(v>=1e3) return (v/1e3).toFixed(1).replace(/\.0$/,'')+'K';
+    return String(v); }
+  function money(v){ return '$'+Math.round(v).toLocaleString('en-US'); }
+  function pct(v,d){ return (v*100).toFixed(d==null?1:d)+'%'; }
+
+  // model: {tiers:[{name,rank,lives,pmpm,share,color}], lives, spend, pmpm}
+  function render(m){
+    var pyr=document.getElementById('pyr'); pyr.innerHTML='';
+    var cc=document.getElementById('ccbar'); cc.innerHTML='';
+    var lg=document.getElementById('legend'); lg.innerHTML='';
+    if(!m.tiers.length) return;
+    var maxLives=0; m.tiers.forEach(function(t){ if(t.lives>maxLives) maxLives=t.lives; });
+    var maxShare=0; m.tiers.forEach(function(t){ if(t.share>maxShare) maxShare=t.share; });
+    if(!maxLives) maxLives=1; if(!maxShare) maxShare=1;
+
+    m.tiers.forEach(function(t){
+      var row=document.createElement('div'); row.className='row';
+
+      var nm=document.createElement('div'); nm.className='tname';
+      nm.innerHTML=t.name+'<i>'+pct(m.lives?t.lives/m.lives:0)+' of panel</i>';
+      row.appendChild(nm);
+
+      // pyramid width: a 0.58 power keeps the 1%-of-panel apex legible while still
+      // reading as a pyramid. Linear on lives would collapse the top tier to a sliver.
+      var bw=document.createElement('div'); bw.className='bandwrap';
+      var band=document.createElement('div'); band.className='band';
+      band.style.width=Math.max(7,Math.pow(t.lives/maxLives,0.58)*100)+'%';
+      band.style.background='linear-gradient(90deg,'+t.color+' 0%,'+shade(t.color,18)+' 100%)';
+      var lab=document.createElement('span'); lab.textContent=fmtN(t.lives)+' lives'; band.appendChild(lab);
+      band.addEventListener('mousemove',function(e){
+        tip.style.opacity=1;
+        tip.style.left=Math.min(e.clientX+14,window.innerWidth-250)+'px';
+        tip.style.top=(e.clientY+14)+'px';
+        tip.innerHTML='<b>'+t.name+'</b><br>'+fmtN(t.lives)+' attributed lives ('+pct(m.lives?t.lives/m.lives:0)+' of panel)<br>'+
+          money(t.pmpm)+' PMPM<br>'+pct(t.share)+' of medical spend';
+      });
+      band.addEventListener('mouseleave',function(){ tip.style.opacity=0; });
+      bw.appendChild(band); row.appendChild(bw);
+
+      var nums=document.createElement('div'); nums.className='nums';
+      nums.innerHTML='<b>'+money(t.pmpm)+'</b> pmpm<br><span>'+fmtN(t.lives)+' lives</span>';
+      row.appendChild(nums);
+
+      var sh=document.createElement('div'); sh.className='share';
+      var tr=document.createElement('div'); tr.className='strack';
+      var fl=document.createElement('div'); fl.className='sfill';
+      fl.style.width=Math.max(2,(t.share/maxShare)*100)+'%'; fl.style.background=t.color;
+      tr.appendChild(fl); sh.appendChild(tr);
+      var sl=document.createElement('div'); sl.className='slab';
+      sl.innerHTML='<b>'+pct(t.share)+'</b> of spend'; sh.appendChild(sl);
+      row.appendChild(sh);
+
+      pyr.appendChild(row);
+    });
+
+    m.tiers.forEach(function(t){
+      var d=document.createElement('div'); d.className='ccseg';
+      d.style.flex=(t.share||0)+' 0 0'; d.style.background=t.color;
+      d.addEventListener('mousemove',function(e){
+        tip.style.opacity=1;
+        tip.style.left=Math.min(e.clientX+14,window.innerWidth-250)+'px';
+        tip.style.top=(e.clientY+14)+'px';
+        tip.innerHTML='<b>'+t.name+'</b><br>'+pct(t.share)+' of medical spend<br>'+pct(m.lives?t.lives/m.lives:0)+' of attributed lives';
+      });
+      d.addEventListener('mouseleave',function(){ tip.style.opacity=0; });
+      cc.appendChild(d);
+      var el=document.createElement('div'); el.className='lg';
+      el.innerHTML='<span class="sw" style="background:'+t.color+'"></span>'+t.name;
+      lg.appendChild(el);
+    });
+
+    // the headline every population-health team looks for: how concentrated is spend
+    // in the top acuity tiers relative to how few lives they represent.
+    var topN=Math.min(2,m.tiers.length), tl=0, ts=0;
+    for(var i=0;i<topN;i++){ tl+=m.tiers[i].lives; ts+=m.tiers[i].share; }
+    document.getElementById('cc-call').innerHTML='top '+pct(m.lives?tl/m.lives:0)+' of lives drive <b>'+pct(ts)+'</b> of spend';
+    document.getElementById('m-lives').textContent=fmtN(m.lives);
+    document.getElementById('m-pmpm').textContent=money(m.pmpm);
+    var rising=0; m.tiers.forEach(function(t,i){ if(i<3) rising+=t.lives; });
+    document.getElementById('m-rising').textContent=pct(m.lives?rising/m.lives:0);
+  }
+
+  function shade(hex,amt){
+    var n=parseInt(hex.slice(1),16), r=(n>>16)+amt, g=((n>>8)&255)+amt, b=(n&255)+amt;
+    function c(x){ return Math.max(0,Math.min(255,x)); }
+    return '#'+((1<<24)+(c(r)<<16)+(c(g)<<8)+c(b)).toString(16).slice(1);
+  }
+
+  function build(rows){
+    rows.sort(function(a,b){ return a.rank-b.rank; });
+    var lives=0, spend=0;
+    rows.forEach(function(r){ lives+=r.lives; spend+=r.pmpm*r.lives; });
+    var sumShare=0; rows.forEach(function(r){ sumShare+=r.share; });
+    if(sumShare>0 && Math.abs(sumShare-1)>0.02) rows.forEach(function(r){ r.share=r.share/sumShare; });
+    rows.forEach(function(r,i){ r.color=PAL[i%PAL.length]; });
+    return {tiers:rows,lives:lives,spend:spend,pmpm:lives?spend/lives:0};
+  }
+
+  var SYN=[['Complex',1,1240,2840,0.203],['High Risk',2,4810,1110,0.307],['Rising Risk',3,12400,486,0.347],
+           ['Stable',4,38100,212,0.465],['Healthy',5,61700,94,0.334]];
+  function synth(){
+    return build(SYN.map(function(r){ return {name:r[0],rank:r[1],lives:r[2],pmpm:r[3],share:r[4]}; }));
+  }
+
+  var st={cfg:{},data:null,unsub:null,model:null};
+  function recompute(){
+    var c=st.cfg||{}, d=st.data, rows=[];
+    if(d&&c.tier&&c.lives&&d[c.lives]){
+      var tn=d[c.tier]||[], rk=d[c.rank]||[], lv=d[c.lives]||[], pm=d[c.pmpm]||[], cs=d[c.costShare]||[];
+      for(var i=0;i<lv.length;i++){
+        var l=Number(lv[i]); if(!isFinite(l)) continue;
+        rows.push({name:String(tn[i]==null?'—':tn[i]),
+                   rank:Number(rk[i]!=null?rk[i]:i+1),
+                   lives:l,
+                   pmpm:Number(pm[i]!=null?pm[i]:0)||0,
+                   share:Number(cs[i]!=null?cs[i]:0)||0});
+      }
+    }
+    st.model = rows.length ? build(rows) : synth();
+    render(st.model);
+  }
+
+  // Sigma sizes the iframe AFTER the first paint. Without this the pyramid measures at a
+  // stale width and the bands render clipped or half-width.
+  if(window.ResizeObserver){
+    new ResizeObserver(function(){ if(st.model) render(st.model); }).observe(document.body);
+  } else { window.addEventListener('resize',function(){ if(st.model) render(st.model); }); }
+
+  if(client){
+    client.config.subscribe(function(cfg){
+      st.cfg=cfg||{};
+      if(st.unsub){ st.unsub(); st.unsub=null; }
+      if(cfg&&cfg.source){ st.unsub=client.elements.subscribeToElementData(cfg.source,function(dd){ st.data=dd; recompute(); }); }
+      recompute();
+    });
+  } else { recompute(); }
+})();
+</script>
+</body>
+</html>
